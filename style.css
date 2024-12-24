@@ -1,0 +1,315 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+}
+#map {
+    width: 100%;
+    height: 100%;
+}
+#controlsContainer {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+}
+.button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 60px;
+    height: 60px;
+    background-color: white;
+    color: black;
+    text-decoration: none;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.button:hover {
+    transform: scale(1.1);
+    opacity: 0.9;
+}
+
+.basemap-icon {
+    height: 60px;
+    width: 60px;
+}
+
+.icon-container:hover::after {
+    content: attr(title);
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    white-space: nowrap;
+    z-index: 10;
+}
+
+#control-panel {
+    font-family: Arial, sans-serif;
+    width: 300px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    position: absolute;
+    top: 10%;
+    left: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    z-index: 51;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+}
+
+#control-panel.open {
+    transform: translateX(0);
+}
+
+#control-panel p {
+    margin: 15px 0 5px;
+    font-weight: bold;
+}
+
+#settings-top {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+}
+
+#lower-settings {
+    display: flex;
+}
+
+#basemap-selector {
+    flex-direction: column;
+}
+
+.selector-box {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.selector-box input[type="radio"] {
+    display: none;
+}
+
+.selector-box label {
+    display: inline-block;
+    width: 60%;
+    max-width: 120px;
+    padding: 10px;
+    text-align: center;
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.selector-box label:has(input[type="radio"]:checked) {
+    border-color: #1592b5;
+    background-color: #aacae2;
+    color: white;
+}
+
+.selector-box label:hover {
+    border-color: #1592b5;
+}
+
+#pdf-modal {
+    display: none;
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 90vw;
+    height: 90vh;
+    background-color: white;
+    z-index: 1000;
+}
+
+#pdf-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+#close-pdf {
+    position: absolute;
+    top: 10px;
+    right: 0;
+    z-index: 1001;
+    width: 50px;
+    height: 50px;
+}
+
+#full-screen-pdf {
+    position: absolute;
+    bottom: 10px;
+    right: 0;
+    z-index: 1001;
+}
+
+#controls-box {
+    position: absolute;
+    z-index: 50;
+    top: 20px;
+    left: 20px;
+    display: flex;
+}
+
+button {
+    height: 40px;
+    width: 40px;
+    background-color:#aaadca;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-radius: 5px;
+    margin: 7px;
+}
+
+button:hover {
+    background-color: #1592b5;
+}
+
+#settings-button {
+    left: 20px;
+    top: 20px;
+}
+
+#home-button {
+    bottom: 30px;
+    left: 20px;
+}
+
+#close-button, #close-pdf {
+    position: relative;
+    height: 20px;
+    width: 20px;
+}
+
+.fa-solid {
+    font-size: 26px;
+    color:white;
+}
+
+#filter-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+#filter-selector label {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+#filter-selector, #basemap-selector {
+    width: 50%;
+}
+
+.filter-icon {
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    opacity: 0.6
+}
+
+input[type="checkbox"]:checked + .filter-icon {
+    opacity: 1;
+}
+
+.selector-box.multiselect label:hover {
+    border-color: #1592b5;
+}
+
+.selector-box.multiselect input[type="checkbox"]:checked + label {
+    border-color: #1592b5;
+    background-color: #aacae2;
+    color: white;
+}
+
+.selector-box.multiselect label {
+    width: 30px;
+}
+
+input[type="checkbox"] {
+    display: none;
+}
+
+.mapboxgl-popup-content {
+    padding: 10px;
+    width: 30vw;
+    min-width: 300px;
+    max-width: 400px;
+}
+
+.popup-content {
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.popup-top, .popup-bottom {
+    display: flex;
+}
+
+.popup-top {
+    margin-right: 40px;
+    justify-content: space-around;
+}
+
+.popup-icons, .popup-title {
+    flex: 1;
+}
+
+.popup-icons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-items: center;
+    width: 100%;
+}
+
+.popup-title, .popup-icons, .popup-middle, .popup-bottom {
+    border-style: groove;
+    border-radius: 5px;
+    border-width: 2px;
+    border-color: #aaadca;
+    background-color: #e5e5ff;
+    margin: 1px;
+    padding: 3px;
+}
+
+.icon-container {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+}
+
+.icon-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+@media (max-width: 768px) {
+    .mapboxgl-popup-content {
+        font-size: 0.6rem;
+    }
+
+    .icon-container {
+        width: 25px;
+        height: 25px;
+    }
+}
+  
