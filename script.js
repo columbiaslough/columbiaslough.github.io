@@ -1,5 +1,6 @@
 let pointsData, linesData, polygonsData;
 let currentLanguage = 'en';
+let currentImageIndex = 0;
 
 document.getElementById("settings-button").addEventListener("click", function(event) {
     event.stopPropagation();
@@ -280,6 +281,12 @@ function addPOI(data) {
         const location = properties[`location_${lang}`] || 'N/A';
         const content = properties[`contents_${lang}`] || 'N/A';
 
+        const images = properties.images ? properties.images.split(',') : [];
+        const isDefaultImage = images.length === 0 || images[0] === "image0";
+        const imageHtml = images.length > 0 
+        ? `<img id="current-image" src="resources/popup-images/${images[0]}.png" alt="picture" class="popup-image" />` 
+        : `<img id="current-image" src="resources/popup-images/image0.png" alt="picture" class="popup-image" />`;
+
         const tags = (properties.tags || '').split(',').map(tag => tag.trim());
         const iconsHtml = tags.map(tag => `
             <div class="icon-container" title="${tag}">
@@ -302,22 +309,46 @@ function addPOI(data) {
                     ${content}
                 </div>  
                 <div class="popup-bottom">
-                    <div class="icon-container" id="google-link" title="Open in Google Maps">
-                        <a href="https://maps.google.com/?q=${latitude},${longitude}" target="_blank"><img src="https://www.vectorlogo.zone/logos/google_maps/google_maps-icon.svg" class="icon-image"</a>
+                    <div class="map-icons">
+                        <p>Links:</p>
+                        <div class="icon-container" id="google-link" title="Open in Google Maps">
+                            <a href="https://maps.google.com/?q=${latitude},${longitude}" target="_blank"><img src="https://www.vectorlogo.zone/logos/google_maps/google_maps-icon.svg" class="icon-image"></a>
+                        </div>
+                        <div class="icon-container" id="bing-link" title="Open in Bing Maps">
+                            <a href="https://bing.com/maps/default.aspx?cp=${latitude}~${longitude}&lvl=15" target="_blank"><img src="https://download.logo.wine/logo/Bing_Maps_Platform/Bing_Maps_Platform-Logo.wine.png" class="icon-image"></a>
+                        </div>
+                        <div class="icon-container" id="apple-link" title="Open in Apple Maps">
+                            <a href="http://maps.apple.com/?q=${latitude},${longitude}" target="_blank"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQk4kU3uCXeJ2uIbJL0bZQbm1KNRjnI7vW3Ww&s" class="icon-image"></a>
+                        </div>
                     </div>
-                    <div class="icon-container" id="bing-link" title="Open in Bing Maps">
-                        <a href="https://bing.com/maps/default.aspx?cp=${latitude}~${longitude}&lvl=15" target="_blank"><img src="https://download.logo.wine/logo/Bing_Maps_Platform/Bing_Maps_Platform-Logo.wine.png" class="icon-image"</a>
+                    <div class="image-carousel">
+                        <div class="image-wrapper">
+                            ${imageHtml}
+                        </div>
+                        <button class="carousel-button left-button" id="previous-image-button" style="display:${isDefaultImage ? 'none' : 'block'};">&#9664;</button>
+                        <button class="carousel-button right-button" id="next-image-button" style="display:${isDefaultImage ? 'none' : 'block'};">&#9654;</button>
                     </div>
-                    <div class="icon-container" id="apple-link" title="Open in Apple Maps">
-                        <a href="http://maps.apple.com/?q=${latitude},${longitude}" target="_blank"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQk4kU3uCXeJ2uIbJL0bZQbm1KNRjnI7vW3Ww&s" class="icon-image"</a>
-                    </div>
+                </div>
             </div>
         `;
 
-        new mapboxgl.Popup({ offset: 25})
+        const popup = new mapboxgl.Popup({ offset: 25})
             .setLngLat(coordinates)
             .setHTML(popupContent)
-            .addTo(map)
+            .addTo(map);
+
+        popup.getElement().querySelector('#previous-image-button')?.addEventListener('click', () => {
+            showPreviousImage(images);
+        });
+    
+        popup.getElement().querySelector('#next-image-button')?.addEventListener('click', () => {
+            showNextImage(images);
+        });
+
+        const currentImage = popup.getElement().querySelector('#current-image');
+        if (currentImage) {
+            currentImage.addEventListener('click', () => openImageModal(images));
+        }
     }
 
     map.on('click', 'poi-circles', (e) => {
@@ -325,10 +356,12 @@ function addPOI(data) {
         createPopup(e, currentLanguage);
 
         const coordinates = e.features[0].geometry.coordinates.slice();
+        const [longitude, latitude] = coordinates;
+        const offsetLatitude = latitude - 0.005;
         const title = e.features[0].properties[`name_${currentLanguage}`];
 
         map.flyTo({
-            center: coordinates,
+            center: [longitude, offsetLatitude],
             zoom: 14,
             speed: 1,
             curve: 1
@@ -368,6 +401,57 @@ document.querySelectorAll('#language-selector input[name="language"]').forEach(r
         fullscreenButton.href = `resources/NatureInTheCity_FINAL_${currentLanguage}.pdf`;
     });
 }); 
+
+function showPreviousImage(images) {
+    if (!images.length) return;
+    currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
+    document.getElementById('current-image').src = `resources/popup-images/${images[currentImageIndex]}.png`;
+}
+
+function showNextImage(images) {
+    if (!images.length) return;
+    currentImageIndex = (currentImageIndex + 1) % images.length;
+    document.getElementById('current-image').src = `resources/popup-images/${images[currentImageIndex]}.png`;
+}
+
+function openImageModal(images) {
+    const modalHtml = `
+        <div id="image-modal" class="modal-overlay">
+            <div class="modal-content">
+                <img id="modal-image" src="resources/popup-images/${images[currentImageIndex]}.png" alt="Detailed view">
+                <button class="carousel-button left-button" id="modal-previous-button">&#9664;</button>
+                <button class="carousel-button right-button" id="modal-next-button">&#9654;</button>
+            </div>
+        </div>
+    `;
+
+    const modal = document.createElement('div');
+    modal.innerHTML = modalHtml;
+    document.body.appendChild(modal);
+
+    const modalOverlay = document.getElementById('image-modal');
+
+    // Close modal on click outside the modal content
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) {
+            modalOverlay.remove();
+        }
+    });
+
+    // Event listeners for modal carousel buttons
+    document.getElementById('modal-previous-button').addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent closing modal
+        showPreviousImage(images);
+        document.getElementById('modal-image').src = `resources/popup-images/${images[currentImageIndex]}.png`;
+    });
+
+    document.getElementById('modal-next-button').addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent closing modal
+        showNextImage(images);
+        document.getElementById('modal-image').src = `resources/popup-images/${images[currentImageIndex]}.png`;
+    });
+}
+
 
 window.onload = function() {
     initializeMap();
