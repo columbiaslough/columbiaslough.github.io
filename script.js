@@ -252,7 +252,7 @@ function addPOI(data) {
         source: 'poi',
         paint: {
             'circle-radius': 9,
-            'circle-color': '#C55736',
+            'circle-color': '#dc9c3c',
             'circle-opacity': 1
         }
     });
