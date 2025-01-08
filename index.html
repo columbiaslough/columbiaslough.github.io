@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Columbia Slough Watershed</title>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        #controlsContainer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+        .button {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 60px;
+            height: 60px;
+            background-color: white;
+            color: black;
+            text-decoration: none;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+        .button:hover {
+            transform: scale(1.1);
+            opacity: 0.9;
+        }
+
+        .basemap-icon {
+            height: 60px;
+            width: 60px;
+        }
+
+        .icon-container:hover::after {
+            content: attr(title);
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        #control-panel {
+            font-family: Arial, sans-serif;
+            width: 300px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            position: absolute;
+            top: 10%;
+            left: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            z-index: 51;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+        }
+
+        #control-panel.open {
+            transform: translateX(0);
+        }
+
+        #control-panel p {
+            margin: 15px 0 5px;
+            font-weight: bold;
+        }
+
+        #settings-top {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        #lower-settings {
+            display: flex;
+        }
+
+        #basemap-selector {
+            flex-direction: column;
+        }
+
+        .selector-box {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .selector-box input[type="radio"] {
+            display: none;
+        }
+
+        .selector-box label {
+            display: inline-block;
+            width: 60%;
+            max-width: 120px;
+            padding: 10px;
+            text-align: center;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .selector-box label:has(input[type="radio"]:checked) {
+            border-color: #1592b5;
+            background-color: #aacae2;
+            color: white;
+        }
+
+        .selector-box label:hover {
+            border-color: #1592b5;
+        }
+
+        #pdf-modal {
+            display: none;
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 90vw;
+            height: 90vh;
+            background-color: white;
+            z-index: 1000;
+        }
+
+        #pdf-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        #close-pdf {
+            position: absolute;
+            top: 10px;
+            right: 0;
+            z-index: 1001;
+            width: 50px;
+            height: 50px;
+        }
+
+        #full-screen-pdf {
+            position: absolute;
+            bottom: 10px;
+            right: 0;
+            z-index: 1001;
+        }
+
+        #controls-box {
+            position: absolute;
+            z-index: 50;
+            top: 20px;
+            left: 20px;
+            display: flex;
+        }
+
+        button {
+            height: 40px;
+            width: 40px;
+            background-color:#aaadca;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 5px;
+            margin: 7px;
+        }
+
+        button:hover {
+            background-color: #1592b5;
+        }
+
+        #settings-button {
+            left: 20px;
+            top: 20px;
+        }
+
+        #home-button {
+            bottom: 30px;
+            left: 20px;
+        }
+
+        #close-button, #close-pdf {
+            position: relative;
+            height: 20px;
+            width: 20px;
+        }
+
+        .fa-solid {
+            font-size: 26px;
+            color:white;
+        }
+
+        #filter-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        #filter-selector label {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        #filter-selector, #basemap-selector {
+            width: 50%;
+        }
+
+        .filter-icon {
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            opacity: 0.4
+        }
+
+        input[type="checkbox"]:checked + .filter-icon {
+            opacity: 1;
+        }
+
+        .selector-box.multiselect label:hover {
+            border-color: #1592b5;
+        }
+
+        .selector-box.multiselect input[type="checkbox"]:checked + label {
+            border-color: #1592b5;
+            background-color: #aacae2;
+            color: white;
+        }
+
+        .selector-box.multiselect label {
+            width: 30px;
+        }
+
+        input[type="checkbox"] {
+            display: none;
+        }
+
+        .mapboxgl-popup-content {
+            padding: 10px;
+            width: 30vw;
+            min-width: 300px;
+            max-width: 400px;
+        }
+
+        .popup-content {
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .popup-bottom {
+            display: flex;
+        }
+
+        .popup-top {
+            margin-right: 40px;
+            justify-content: space-around;
+        }
+
+        .map-icons {
+            flex: 0.5;
+        }
+
+        .popup-icons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .popup-title, .popup-icons, .popup-middle, .map-icons, .image-carousel {
+            border-style: groove;
+            border-radius: 5px;
+            border-width: 2px;
+            border-color: #aaadca;
+            background-color: #e5e5ff;
+            margin: 1px;
+            padding: 3px;
+        }
+
+        .icon-container {
+            position: relative;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+        }
+
+        .icon-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .image-carousel {
+            display: flex;
+            flex: 3;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .image-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            position: relative;
+        }
+
+        .popup-image {
+            height: 150px;
+            width: 150px;
+            object-fit: cover;
+        }
+
+        .carousel-button {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 2;
+            transition: background-color 0.3s;
+        }
+
+        .left-button {
+            left: 10px;
+        }
+
+        .right-button {
+            right: 10px;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: relative;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 1001;
+        }
+
+        .modal-content img {
+            max-width: 90%;
+            max-height: 80vh;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        @media (max-width: 768px) {
+            .mapboxgl-popup-content {
+                font-size: 0.6rem;
+            }
+
+            .icon-container {
+                width: 25px;
+                height: 25px;
+            }
+        }
+  
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div id="controls-box">
+        <button id="settings-button">
+            <i class="fa-solid fa-gear"></i>
+        </button>
+        <button id="home-button">
+            <i class="fa-solid fa-house"></i>
+        </button>
+        <button id="pdf-button">
+            <i class="fa-solid fa-info"></i>
+        </button>
+    </div>
+    <div id="control-panel">
+        <div id="settings-top">
+            <p id="language-setting">Language</p>
+            <button id="close-button">X</button>
+        </div>
+        <div id="language-selector" class="selector-box">
+            <label><input type="radio" name="language" value="en" checked> English</label>
+            <label><input type="radio" name="language" value="es"> Español</label>
+            <label><input type="radio" name="language" value="uk"> Українська</label>
+            <label><input type="radio" name="language" value="ru"> Русский</label>
+        </div>
+        <div id="lower-settings">
+            <div id="filter-selector" class="selector-box multiselect">
+                <p id="filter-setting">Filter by Amenities</p>
+                <button id="reset-filters-button">Clear</button>
+                <label title="Wheelchair Accessible">
+                    <input type="checkbox" name="filter" value="accessible">
+                    <img src="resources/icons/accessible.png" alt="Wheelchair Accessible" class="filter-icon">
+                </label>
+                <label title="Birding">
+                    <input type="checkbox" name="filter" value="birding">
+                    <img src="resources/icons/birding.png" alt="Birding" class="filter-icon">
+                </label>
+                <label title="Restrooms">
+                    <input type="checkbox" name="filter" value="restrooms">
+                    <img src="resources/icons/restrooms.png" alt="Restrooms" class="filter-icon">
+                </label>
+                <label title="Hiking">
+                    <input type="checkbox" name="filter" value="hiking">
+                    <img src="resources/icons/hiking.png" alt="Hiking" class="filter-icon">
+                </label>
+                <label title="Paddling">
+                    <input type="checkbox" name="filter" value="paddling">
+                    <img src="resources/icons/paddling.png" alt="Paddling" class="filter-icon">
+                </label>
+                <label title="Paddling (No Launch)">
+                    <input type="checkbox" name="filter" value="paddlingno">
+                    <img src="resources/icons/paddlingno.png" alt="Paddling (No Launch)" class="filter-icon">
+                </label>
+                <label title="Parking">
+                    <input type="checkbox" name="filter" value="parking">
+                    <img src="resources/icons/parking.png" alt="Parking" class="filter-icon">
+                </label>
+                <label title="Biking">
+                    <input type="checkbox" name="filter" value="biking">
+                    <img src="resources/icons/biking.png" alt="Biking" class="filter-icon">
+                </label>
+                <label title="No Pets Allowed">
+                    <input type="checkbox" name="filter" value="nopets">
+                    <img src="resources/icons/nopets.png" alt="No Pets Allowed" class="filter-icon">
+                </label>
+                <label title="Boat Launch">
+                    <input type="checkbox" name="filter" value="boats">
+                    <img src="resources/icons/boats.png" alt="Boat Launch" class="filter-icon">
+                </label>
+            </div>
+            <div id="basemap-selector" class="selector-box">
+                <p id="basemap-setting">Basemap</p>
+                <label><input type="radio" name="basemap" value="satellite" checked> 
+                    <img src="resources/icons/satellite.png" class="basemap-icon">
+                </label>
+                <label><input type="radio" name="basemap" value="streetmap">
+                    <img src="resources/icons/streetmap.png" class="basemap-icon">
+                </label>
+            </div>
+        </div>
+    </div>
+    <div id="pdf-modal">
+        <iframe src="resources/NatureInTheCity_FINAL_en.pdf" id="pdf-iframe"></iframe>
+        <button id="close-pdf">X</button>
+        <a href="resources/NatureInTheCity_FINAL_en.pdf" id="full-screen-link" target="_blank"> <button id="full-screen-pdf"><i class="fa-solid fa-expand"></i></button></a>
+    </div>
+    <script>
+        let pointsData, linesData, polygonsData;
+        let currentLanguage = 'en';
+        let currentImageIndex = 0;
+
+        document.getElementById("settings-button").addEventListener("click", function(event) {
+            event.stopPropagation();
+            const controlPanel = document.getElementById('control-panel');
+            controlPanel.classList.toggle('open');
+        });
+
+        document.getElementById("close-button").addEventListener("click", function() {
+            const controlPanel = document.getElementById('control-panel');
+            controlPanel.classList.remove('open');
+        });
+
+        document.getElementById("pdf-button").addEventListener("click", function(event) {
+            event.stopPropagation();
+            document.getElementById('pdf-modal').style.display = "flex";
+        });
+
+        document.getElementById("close-pdf").addEventListener("click", function() {
+            document.getElementById('pdf-modal').style.display = "none";
+        });
+
+        document.addEventListener("click", function(event) {
+            const pdfModal = document.getElementById('pdf-modal');
+            const controlPanel = document.getElementById('control-panel');
+
+            if (pdfModal.style.display === "flex" && !pdfModal.contains(event.target) && event.target.id !== "pdf-button") {
+                pdfModal.style.display = "none";
+            }
+            if (controlPanel.classList.contains('open') && !controlPanel.contains(event.target) && event.target.id !== "settings-button") {
+                controlPanel.classList.remove('open');
+            }
+        });
+
+        document.getElementById("reset-filters-button").addEventListener("click", function() {
+            document.querySelectorAll('#filter-selector input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+
+            map.setFilter('poi-circles', null);
+            map.setFilter('poi-labels', null);
+        });
+
+        document.querySelectorAll('#basemap-selector input[name="basemap"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const basemapValue = e.target.value;
+                let style;
+
+                switch(basemapValue) {
+                    case 'satellite':
+                        style = 'mapbox://styles/mapbox/satellite-streets-v11';
+                        break;
+                    case 'streetmap':
+                        style= 'mapbox://styles/mapbox/navigation-day-v1';
+                        break;
+                    default:
+                        style='mapbox://styles/mapbox/satellite-streets-v11';
+                }
+
+                if (map.getSource('poi')) {
+                    map.removeLayer('poi-circles');
+                    map.removeLayer('poi-labels');
+                    map.removeSource('poi');
+                }
+
+                if (map.getSource('polygons')) {
+                    map.removeLayer('polygons-layer');
+                    map.removeSource('polygons');
+                }
+
+                if (map.getSource('lines')) {
+                    map.removeLayer('lines-layer');
+                    map.removeSource('lines');
+                }
+
+                if (map.getSource('points')) {
+                    map.removeLayer('points-layer');
+                    map.removeSource('points');
+                }
+                
+                map.setStyle(style);
+
+                map.on('style.load', function() {
+                    if (poi) {
+                        addPOI(poi);
+                    }
+                    if (polygonsData) {
+                        loadAdditionalFeatures();
+                    }
+                });
+
+                document.querySelectorAll('#filter-selector input[type="checkbox"]').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            
+                map.setFilter('poi-circles', null);
+                map.setFilter('poi-labels', null);
+            });
+        });
+
+        document.querySelectorAll('#filter-selector input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                const selectedTags = Array.from(
+                    document.querySelectorAll('#filter-selector input[type="checkbox"]:checked')
+                ).map(cb => cb.value);
+
+                if (selectedTags.length === 0) {
+                    map.setFilter('poi-circles', null);
+                    map.setFilter('poi-labels', null);
+                    return;
+                }
+
+                const filter = [
+                    'all', 
+                    ...selectedTags.map(tag => ['in', tag, ['get', 'tags']])
+                ];
+
+                map.setFilter('poi-circles', filter);
+                map.setFilter('poi-labels', filter);
+            }); 
+        });
+
+        function initializeMap() {
+            mapboxgl.accessToken = 'pk.eyJ1IjoiY29sdW1iaWFzbG91Z2giLCJhIjoiY201MWFrbTBmMHN1aTJwcHd1dHloMGs4YyJ9.kQj7ux3XSeQiOBwxzM5B9g';
+            map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/satellite-streets-v11',
+                bounds: [[-122.9, 45.53], [-122.3, 45.65]]
+            });
+
+            map.setBearing(16);
+
+            map.on('load', function() {
+
+                fetch('resources/poi.geojson')
+                    .then(response => response.json())
+                    .then(data => {
+                        poi = data;
+                        addPOI(poi);
+                    })
+                    .catch(error => console.error('Error loading poi data:', error));
+                    
+                loadAdditionalFeatures();
+                });
+        }
+
+        function prepProperties(data) {
+            data.features.forEach(feature => {
+                if (!feature.properties) {
+                    feature.properties = {};
+                }
+                feature.properties.id = feature.id;
+            });
+            return data;
+        }
+
+        function loadAdditionalFeatures() {
+            Promise.all([
+                fetch('resources/polygons.geojson').then(response => response.json()),
+                fetch('resources/lines.geojson').then(response => response.json()),
+                fetch('resources/points.geojson').then(response => response.json())
+            ])
+            .then(([polygons, lines, points]) => {
+                polygonsData = polygons;
+                linesData = lines;
+                pointsData = points;
+
+                map.addSource('polygons', {
+                    type: 'geojson',
+                    data: polygonsData
+                });
+                map.addLayer({
+                    id: 'polygons-layer',
+                    type: 'fill',
+                    source: 'polygons',
+                    paint: {
+                        'fill-color': '#33ff99',
+                        'fill-opacity': 0.3,
+                        'fill-outline-color': '#d7f531'
+                    },
+                    layout: {
+                        'visibility': 'none'
+                    },
+                    minzoom: 13.5
+                });
+
+                map.addSource('lines', {
+                    type: 'geojson',
+                    data: linesData
+                });
+                map.addLayer({
+                    id: 'lines-layer',
+                    type: 'line',
+                    source: 'lines',
+                    paint: {
+                        'line-color': '#ff5773',
+                        'line-width': 2
+                    },
+                    layout: {
+                        'visibility': 'none'
+                    },
+                    minzoom: 13.5
+                });
+                        
+                const icons = ['restrooms', 'parking'];
+                return Promise.all(
+                    icons.map(icon => 
+                        new Promise((resolve, reject) => {
+                            map.loadImage(`resources/icons/${icon}.png`, (error, image) => {
+                                if (error) reject(error);
+                                if (!map.hasImage(icon)) {
+                                    map.addImage(icon, image);
+                                }
+                                resolve();
+                            });
+                        })
+                    )
+                ).then(() => {
+                    map.addSource('points', {
+                        type: 'geojson',
+                        data: pointsData
+                    });
+                    map.addLayer({
+                        id: 'points-layer',
+                        type: 'symbol',
+                        source: 'points',
+                        layout: {
+                            'icon-image': ['get', 'type'],
+                            'icon-size': 0.15,
+                            'visibility': 'none'
+                        },
+                        minzoom: 13.5
+                    });
+                });
+            })
+            .catch(error => console.error('Error loading features:', error));
+        }
+
+        function addPOI(data) {
+            const processedData = prepProperties(data);
+            
+            map.addSource('poi', {
+                type: 'geojson',
+                data: processedData
+            });
+
+            map.addLayer({
+                id: 'poi-circles',
+                type: 'circle',
+                source: 'poi',
+                paint: {
+                    'circle-radius': 9,
+                    'circle-color': '#dc9c3c',
+                    'circle-opacity': 1
+                }
+            });
+
+            map.addLayer({
+                id: 'poi-labels',
+                type: 'symbol',
+                source: 'poi',
+                layout: {
+                    'text-field': ['get', 'id'],
+                    'text-size': 10,
+                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                    'text-anchor': 'center'
+                },
+                paint: {
+                    'text-color': 'white'
+                }
+            });
+
+            function createPopup(e, lang) {
+                const coordinates = e.features[0].geometry.coordinates.slice();
+                const [longitude, latitude] = coordinates;
+                const properties = e.features[0].properties;
+
+                const name = properties[`name_${lang}`] || 'N/A';
+                const location = properties[`location_${lang}`] || 'N/A';
+                const content = properties[`contents_${lang}`] || 'N/A';
+
+                const images = properties.images ? properties.images.split(',') : [];
+                const isDefaultImage = images.length === 0 || images[0] === "image0";
+                const imageHtml = images.length > 0 
+                ? `<img id="current-image" src="resources/popup-images/${images[0]}.png" alt="picture" class="popup-image" />` 
+                : `<img id="current-image" src="resources/popup-images/image0.png" alt="picture" class="popup-image" />`;
+
+                const tags = (properties.tags || '').split(',').map(tag => tag.trim());
+                const iconsHtml = tags.map(tag => `
+                    <div class="icon-container" title="${tag}">
+                        <img src="resources/icons/${tag}.png" alt="${tag}" class="icon-image">
+                    </div>
+                `).join('');
+
+                const popupContent = `
+                    <div class="popup-content">
+                        <div class="popup-top">
+                            <div class="popup-title"
+                                <b>${name}</b><br>
+                                <em>${location}</em><br>
+                            </div>
+                            <div class="popup-icons">
+                                ${iconsHtml}
+                            </div>
+                        </div>
+                        <div class="popup-middle">
+                            ${content}
+                        </div>  
+                        <div class="popup-bottom">
+                            <div class="map-icons">
+                                <p>Links:</p>
+                                <div class="icon-container" id="google-link" title="Open in Google Maps">
+                                    <a href="https://maps.google.com/?q=${latitude},${longitude}" target="_blank"><img src="https://www.vectorlogo.zone/logos/google_maps/google_maps-icon.svg" class="icon-image"></a>
+                                </div>
+                                <div class="icon-container" id="bing-link" title="Open in Bing Maps">
+                                    <a href="https://bing.com/maps/default.aspx?cp=${latitude}~${longitude}&lvl=15" target="_blank"><img src="https://download.logo.wine/logo/Bing_Maps_Platform/Bing_Maps_Platform-Logo.wine.png" class="icon-image"></a>
+                                </div>
+                                <div class="icon-container" id="apple-link" title="Open in Apple Maps">
+                                    <a href="http://maps.apple.com/?q=${latitude},${longitude}" target="_blank"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQk4kU3uCXeJ2uIbJL0bZQbm1KNRjnI7vW3Ww&s" class="icon-image"></a>
+                                </div>
+                            </div>
+                            <div class="image-carousel">
+                                <div class="image-wrapper">
+                                    ${imageHtml}
+                                </div>
+                                <button class="carousel-button left-button" id="previous-image-button" style="display:${isDefaultImage ? 'none' : 'block'};">&#9664;</button>
+                                <button class="carousel-button right-button" id="next-image-button" style="display:${isDefaultImage ? 'none' : 'block'};">&#9654;</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                const popup = new mapboxgl.Popup({ offset: 25})
+                    .setLngLat(coordinates)
+                    .setHTML(popupContent)
+                    .addTo(map);
+
+                popup.getElement().querySelector('#previous-image-button')?.addEventListener('click', () => {
+                    showPreviousImage(images);
+                });
+            
+                popup.getElement().querySelector('#next-image-button')?.addEventListener('click', () => {
+                    showNextImage(images);
+                });
+
+                const currentImage = popup.getElement().querySelector('#current-image');
+                if (currentImage) {
+                    currentImage.addEventListener('click', () => openImageModal(images));
+                }
+            }
+
+            map.on('click', 'poi-circles', (e) => {
+                const clickedName = e.features[0].properties['name_en'];
+                createPopup(e, currentLanguage);
+
+                const coordinates = e.features[0].geometry.coordinates.slice();
+                const [longitude, latitude] = coordinates;
+                const offsetLatitude = latitude - 0.005;
+                const title = e.features[0].properties[`name_${currentLanguage}`];
+
+                map.flyTo({
+                    center: [longitude, offsetLatitude],
+                    zoom: 14,
+                    speed: 1,
+                    curve: 1
+                });
+
+                function filterAndShowLayer(sourceId, layerId, data, property) {
+                    const matchingFeatures = data.features.filter(
+                        feature => feature.properties[property] === clickedName
+                    );
+
+                    if (matchingFeatures.length > 0) {
+                        const filteredData = {
+                            type: 'FeatureCollection',
+                            features: matchingFeatures
+                        };
+                        map.getSource(sourceId).setData(filteredData);
+                        map.setLayoutProperty(layerId, 'visibility', 'visible');
+                    } else {
+                        map.setLayoutProperty(layerId, 'visibility', 'none');
+                    }
+                }
+
+                if (polygonsData) filterAndShowLayer('polygons', 'polygons-layer', polygonsData, 'feature');
+                if (linesData) filterAndShowLayer('lines', 'lines-layer', linesData, 'feature');
+                if (pointsData) filterAndShowLayer('points', 'points-layer', pointsData, 'feature');
+            });
+        }
+
+        document.querySelectorAll('#language-selector input[name="language"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const pdfIframe = document.getElementById("pdf-iframe");
+                const fullscreenButton = document.getElementById("full-screen-link");
+                
+                currentLanguage = e.target.value;
+                console.log(`Language set to: ${currentLanguage}`);
+                pdfIframe.src = `resources/NatureInTheCity_FINAL_${currentLanguage}.pdf`;
+                fullscreenButton.href = `resources/NatureInTheCity_FINAL_${currentLanguage}.pdf`;
+            });
+        }); 
+
+        function showPreviousImage(images) {
+            if (!images.length) return;
+            currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
+            document.getElementById('current-image').src = `resources/popup-images/${images[currentImageIndex]}.png`;
+        }
+
+        function showNextImage(images) {
+            if (!images.length) return;
+            currentImageIndex = (currentImageIndex + 1) % images.length;
+            document.getElementById('current-image').src = `resources/popup-images/${images[currentImageIndex]}.png`;
+        }
+
+        function openImageModal(images) {
+            const modalHtml = `
+                <div id="image-modal" class="modal-overlay">
+                    <div class="modal-content">
+                        <img id="modal-image" src="resources/popup-images/${images[currentImageIndex]}.png" alt="Detailed view">
+                        <button class="carousel-button left-button" id="modal-previous-button">&#9664;</button>
+                        <button class="carousel-button right-button" id="modal-next-button">&#9654;</button>
+                    </div>
+                </div>
+            `;
+
+            const modal = document.createElement('div');
+            modal.innerHTML = modalHtml;
+            document.body.appendChild(modal);
+
+            const modalOverlay = document.getElementById('image-modal');
+
+            // Close modal on click outside the modal content
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) {
+                    modalOverlay.remove();
+                }
+            });
+
+            // Event listeners for modal carousel buttons
+            document.getElementById('modal-previous-button').addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent closing modal
+                showPreviousImage(images);
+                document.getElementById('modal-image').src = `resources/popup-images/${images[currentImageIndex]}.png`;
+            });
+
+            document.getElementById('modal-next-button').addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent closing modal
+                showNextImage(images);
+                document.getElementById('modal-image').src = `resources/popup-images/${images[currentImageIndex]}.png`;
+            });
+        }
+
+
+        window.onload = function() {
+            initializeMap();
+            map.addControl(new mapboxgl.NavigationControl());
+        }
+
+        document.getElementById("home-button").addEventListener("click", function() {
+            map.fitBounds([[-122.9, 45.53], [-122.3, 45.65]], {bearing: 16});
+        });
+
+
+    </script>
+</body>
+</html>
