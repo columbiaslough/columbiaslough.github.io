@@ -144,6 +144,10 @@ function initializeMap() {
             
         loadAdditionalFeatures();
         });
+
+        map.on('zoom', () => {
+            console.log('Current zoom level:', map.getZoom());
+        });
 }
 
 function prepProperties(data) {
@@ -228,7 +232,7 @@ function loadAdditionalFeatures() {
                 source: 'points',
                 layout: {
                     'icon-image': ['get', 'type'],
-                    'icon-size': 0.15,
+                    'icon-size': 0.09,
                     'visibility': 'none'
                 },
                 minzoom: 13.5
@@ -290,15 +294,15 @@ function addPOI(data) {
         const tags = (properties.tags || '').split(',').map(tag => tag.trim());
         const iconsHtml = tags.map(tag => `
             <div class="icon-container" title="${tag}">
-                <img src="resources/icons/${tag}.png" alt="${tag}" class="icon-image">
+                <img src="resources/icons/${tag}.svg" alt="${tag}" class="icon-image">
             </div>
         `).join('');
 
         const popupContent = `
             <div class="popup-content">
                 <div class="popup-top">
-                    <div class="popup-title"
-                        <b>${name}</b><br>
+                    <div class="popup-title">
+                        <strong>${name}</strong><br>
                         <em>${location}</em><br>
                     </div>
                     <div class="popup-icons">
@@ -346,7 +350,7 @@ function addPOI(data) {
         });
 
         const currentImage = popup.getElement().querySelector('#current-image');
-        if (currentImage) {
+        if (currentImage && !isDefaultImage) {
             currentImage.addEventListener('click', () => openImageModal(images));
         }
     }
@@ -356,13 +360,14 @@ function addPOI(data) {
         createPopup(e, currentLanguage);
 
         const coordinates = e.features[0].geometry.coordinates.slice();
+        const zoomLevel = e.features[0].properties['zoom'];
         const [longitude, latitude] = coordinates;
-        const offsetLatitude = latitude - 0.005;
+        const offsetLatitude = latitude - 0.003;
         const title = e.features[0].properties[`name_${currentLanguage}`];
 
         map.flyTo({
             center: [longitude, offsetLatitude],
-            zoom: 14,
+            zoom: zoomLevel,
             speed: 1,
             curve: 1
         });
