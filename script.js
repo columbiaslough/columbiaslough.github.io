@@ -127,7 +127,7 @@ function initializeMap() {
     map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/satellite-streets-v11',
-        bounds: [[-122.9, 45.53], [-122.3, 45.65]]
+        bounds: [[-122.8, 45.53], [-122.45, 45.65]]
     });
 
     map.setBearing(16);
@@ -187,7 +187,7 @@ function loadAdditionalFeatures() {
             layout: {
                 'visibility': 'none'
             },
-            minzoom: 13.5
+            minzoom: 13
         });
 
         map.addSource('lines', {
@@ -205,7 +205,7 @@ function loadAdditionalFeatures() {
             layout: {
                 'visibility': 'none'
             },
-            minzoom: 13.5
+            minzoom: 13
         });
                 
         const icons = ['restrooms', 'parking'];
@@ -235,7 +235,7 @@ function loadAdditionalFeatures() {
                     'icon-size': 0.09,
                     'visibility': 'none'
                 },
-                minzoom: 13.5
+                minzoom: 13
             });
         });
     })
@@ -362,11 +362,12 @@ function addPOI(data) {
         const coordinates = e.features[0].geometry.coordinates.slice();
         const zoomLevel = e.features[0].properties['zoom'];
         const [longitude, latitude] = coordinates;
-        const offsetLatitude = latitude - 0.003;
+        const offsetLatitude = latitude - (0.03/zoomLevel);
+        const offsetLongitude = longitude - (0.01/zoomLevel);
         const title = e.features[0].properties[`name_${currentLanguage}`];
 
         map.flyTo({
-            center: [longitude, offsetLatitude],
+            center: [offsetLongitude, offsetLatitude],
             zoom: zoomLevel,
             speed: 1,
             curve: 1
