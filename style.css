@@ -272,7 +272,7 @@ input[type="checkbox"] {
     justify-content: space-around;
 }
 
-.map-icons {
+.links-container {
     flex: 0.5;
 }
 
@@ -284,7 +284,7 @@ input[type="checkbox"] {
     width: 100%;
 }
 
-.popup-title, .popup-icons, .popup-middle, .map-icons, .image-carousel {
+.popup-title, .popup-icons, .popup-middle, .links-container, .image-carousel {
     border-style: groove;
     border-radius: 5px;
     border-width: 2px;
@@ -299,6 +299,14 @@ input[type="checkbox"] {
     width: 32px;
     height: 32px;
     cursor: pointer;
+}
+
+.map-icon-container {
+    position: relative;
+    width: 45px;
+    height: 45px;
+    cursor: pointer;
+    margin-bottom: 4px;
 }
 
 .icon-image {

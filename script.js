@@ -144,10 +144,6 @@ function initializeMap() {
             
         loadAdditionalFeatures();
         });
-
-        map.on('zoom', () => {
-            console.log('Current zoom level:', map.getZoom());
-        });
 }
 
 function prepProperties(data) {
@@ -269,10 +265,15 @@ function addPOI(data) {
             'text-field': ['get', 'id'],
             'text-size': 10,
             'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-            'text-anchor': 'center'
+            'text-anchor': 'center',
+            'text-allow-overlap': true,
+            'text-ignore-placement': true,
+            'symbol-placement': 'point'
         },
         paint: {
-            'text-color': 'white'
+            'text-color': 'white',
+            'text-halo-color': 'black',
+            'text-halo-width': 0.6
         }
     });
 
@@ -288,7 +289,7 @@ function addPOI(data) {
         const images = properties.images ? properties.images.split(',') : [];
         const isDefaultImage = images.length === 0 || images[0] === "image0";
         const imageHtml = images.length > 0 
-        ? `<img id="current-image" src="resources/popup-images/${images[0]}.png" alt="picture" class="popup-image" />` 
+        ? `<img id="current-image" src="resources/popup-images/${images[0]}.jpg" alt="picture" class="popup-image" />` 
         : `<img id="current-image" src="resources/popup-images/image0.png" alt="picture" class="popup-image" />`;
 
         const tags = (properties.tags || '').split(',').map(tag => tag.trim());
@@ -297,6 +298,8 @@ function addPOI(data) {
                 <img src="resources/icons/${tag}.svg" alt="${tag}" class="icon-image">
             </div>
         `).join('');
+
+        
 
         const popupContent = `
             <div class="popup-content">
@@ -313,16 +316,19 @@ function addPOI(data) {
                     ${content}
                 </div>  
                 <div class="popup-bottom">
-                    <div class="map-icons">
+                    <div class="links-container">
                         <p>Links:</p>
-                        <div class="icon-container" id="google-link" title="Open in Google Maps">
-                            <a href="https://maps.google.com/?q=${latitude},${longitude}" target="_blank"><img src="https://www.vectorlogo.zone/logos/google_maps/google_maps-icon.svg" class="icon-image"></a>
-                        </div>
-                        <div class="icon-container" id="bing-link" title="Open in Bing Maps">
-                            <a href="https://bing.com/maps/default.aspx?cp=${latitude}~${longitude}&lvl=15" target="_blank"><img src="https://download.logo.wine/logo/Bing_Maps_Platform/Bing_Maps_Platform-Logo.wine.png" class="icon-image"></a>
-                        </div>
-                        <div class="icon-container" id="apple-link" title="Open in Apple Maps">
-                            <a href="http://maps.apple.com/?q=${latitude},${longitude}" target="_blank"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQk4kU3uCXeJ2uIbJL0bZQbm1KNRjnI7vW3Ww&s" class="icon-image"></a>
+                        <p id="additional-links"></p>
+                        <div class="map-icons">
+                            <div class="map-icon-container" id="google-link" title="Open in Google Maps">
+                                <a href="https://maps.google.com/?q=${latitude},${longitude}" target="_blank"><img src="https://www.vectorlogo.zone/logos/google_maps/google_maps-icon.svg" class="icon-image"></a>
+                            </div>
+                            <div class="map-icon-container" id="apple-link" title="Open in Apple Maps">
+                                <a href="http://maps.apple.com/?q=${latitude},${longitude}" target="_blank"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQk4kU3uCXeJ2uIbJL0bZQbm1KNRjnI7vW3Ww&s" class="icon-image"></a>
+                            </div>
+                            <div class="map-icon-container" id="bing-link" title="Open in Bing Maps">
+                                <a href="https://bing.com/maps/default.aspx?cp=${latitude}~${longitude}&lvl=15" target="_blank"><img src="https://download.logo.wine/logo/Bing_Maps_Platform/Bing_Maps_Platform-Logo.wine.png" class="icon-image"></a>
+                            </div>
                         </div>
                     </div>
                     <div class="image-carousel">
@@ -353,6 +359,23 @@ function addPOI(data) {
         if (currentImage && !isDefaultImage) {
             currentImage.addEventListener('click', () => openImageModal(images));
         }
+
+        const links = properties.links || '';
+        const additionalLinksElement = document.getElementById('additional-links');
+        const linksContainer = popup.getElement().querySelector('.links-container');
+        const mapIconsContainer = popup.getElement().querySelector('.map-icons');
+        const imageCarouselContainer = popup.getElement().querySelector('.image-carousel');
+        if (links) {
+            additionalLinksElement.innerHTML = links;
+            imageCarouselContainer.style.flex = '3';
+            linksContainer.style.flex = '2';
+            mapIconsContainer.style.display = 'flex';
+        } else {
+            additionalLinksElement.style.display = "none";
+            imageCarouselContainer.style.flex = '6';
+            linksContainer.style.flex = '1';
+            mapIconsContainer.style.display = 'block';
+        }
     }
 
     map.on('click', 'poi-circles', (e) => {
@@ -364,7 +387,6 @@ function addPOI(data) {
         const [longitude, latitude] = coordinates;
         const offsetLatitude = latitude - (0.03/zoomLevel);
         const offsetLongitude = longitude - (0.01/zoomLevel);
-        const title = e.features[0].properties[`name_${currentLanguage}`];
 
         map.flyTo({
             center: [offsetLongitude, offsetLatitude],
@@ -411,20 +433,20 @@ document.querySelectorAll('#language-selector input[name="language"]').forEach(r
 function showPreviousImage(images) {
     if (!images.length) return;
     currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
-    document.getElementById('current-image').src = `resources/popup-images/${images[currentImageIndex]}.png`;
+    document.getElementById('current-image').src = `resources/popup-images/${images[currentImageIndex]}.jpg`;
 }
 
 function showNextImage(images) {
     if (!images.length) return;
     currentImageIndex = (currentImageIndex + 1) % images.length;
-    document.getElementById('current-image').src = `resources/popup-images/${images[currentImageIndex]}.png`;
+    document.getElementById('current-image').src = `resources/popup-images/${images[currentImageIndex]}.jpg`;
 }
 
 function openImageModal(images) {
     const modalHtml = `
         <div id="image-modal" class="modal-overlay">
             <div class="modal-content">
-                <img id="modal-image" src="resources/popup-images/${images[currentImageIndex]}.png" alt="Detailed view">
+                <img id="modal-image" src="resources/popup-images/${images[currentImageIndex]}.jpg" alt="Detailed view">
                 <button class="carousel-button left-button" id="modal-previous-button">&#9664;</button>
                 <button class="carousel-button right-button" id="modal-next-button">&#9654;</button>
             </div>
@@ -437,24 +459,22 @@ function openImageModal(images) {
 
     const modalOverlay = document.getElementById('image-modal');
 
-    // Close modal on click outside the modal content
     modalOverlay.addEventListener('click', (e) => {
         if (e.target === modalOverlay) {
             modalOverlay.remove();
         }
     });
 
-    // Event listeners for modal carousel buttons
     document.getElementById('modal-previous-button').addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent closing modal
+        e.stopPropagation(); 
         showPreviousImage(images);
-        document.getElementById('modal-image').src = `resources/popup-images/${images[currentImageIndex]}.png`;
+        document.getElementById('modal-image').src = `resources/popup-images/${images[currentImageIndex]}.jpg`;
     });
 
     document.getElementById('modal-next-button').addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent closing modal
+        e.stopPropagation(); 
         showNextImage(images);
-        document.getElementById('modal-image').src = `resources/popup-images/${images[currentImageIndex]}.png`;
+        document.getElementById('modal-image').src = `resources/popup-images/${images[currentImageIndex]}.jpg`;
     });
 }
 
@@ -467,4 +487,3 @@ window.onload = function() {
 document.getElementById("home-button").addEventListener("click", function() {
     map.fitBounds([[-122.9, 45.53], [-122.3, 45.65]], {bearing: 16});
 });
-
