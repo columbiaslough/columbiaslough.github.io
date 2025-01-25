@@ -160,12 +160,14 @@ function loadAdditionalFeatures() {
     Promise.all([
         fetch('resources/polygons.geojson').then(response => response.json()),
         fetch('resources/lines.geojson').then(response => response.json()),
-        fetch('resources/points.geojson').then(response => response.json())
+        fetch('resources/points.geojson').then(response => response.json()),
+        fetch('resources/subpoints.geojson').then(response => response.json())
     ])
-    .then(([polygons, lines, points]) => {
+    .then(([polygons, lines, points, subpoints]) => {
         polygonsData = polygons;
         linesData = lines;
         pointsData = points;
+        subpointsData = subpoints;
 
         map.addSource('polygons', {
             type: 'geojson',
@@ -202,6 +204,50 @@ function loadAdditionalFeatures() {
                 'visibility': 'none'
             },
             minzoom: 13
+        });
+
+        map.loadImage('resources/icons/square.png', (error, image) => {
+            if (error) throw error;
+            map.addImage('square', image)
+        });
+
+        map.addSource('subpoints', {
+            type: 'geojson',
+            data: subpoints
+        });
+    
+        map.addLayer({
+            id: 'subpoints',
+            type: 'symbol',
+            source: 'subpoints',
+            layout: {
+                'icon-image': 'square',
+                'icon-rotate': 45,
+                'icon-size': 0.1
+            },
+            minzoom: 14
+        });
+
+        map.addLayer({
+            id: 'subponts-labels',
+            type: 'symbol',
+            source: 'subpoints',
+            layout: {
+                'text-field': ['get', 'title_en'],
+                'text-size': 9,
+                'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                'text-anchor': 'right',
+                'text-offset': [1.5, -1.5],
+                'text-allow-overlap': true,
+                'text-ignore-placement': true,
+                'symbol-placement': 'point'
+            },
+            paint: {
+                'text-color': 'black',
+                'text-halo-color': 'white',
+                'text-halo-width': 0.6
+            },
+            minzoom: 14
         });
                 
         const icons = ['restrooms', 'parking'];
@@ -282,9 +328,9 @@ function addPOI(data) {
         const [longitude, latitude] = coordinates;
         const properties = e.features[0].properties;
 
-        const name = properties[`name_${lang}`] || 'N/A';
-        const location = properties[`location_${lang}`] || 'N/A';
-        const content = properties[`contents_${lang}`] || 'N/A';
+        const name = properties[`name_${lang}`] || '';
+        const location = properties[`location_${lang}`] || '';
+        const content = properties[`contents_${lang}`] || '';
 
         const images = properties.images ? properties.images.split(',') : [];
         const isDefaultImage = images.length === 0 || images[0] === "image0";
@@ -297,9 +343,7 @@ function addPOI(data) {
             <div class="icon-container" title="${tag}">
                 <img src="resources/icons/${tag}.svg" alt="${tag}" class="icon-image">
             </div>
-        `).join('');
-
-        
+        `).join('');      
 
         const popupContent = `
             <div class="popup-content">
@@ -416,6 +460,47 @@ function addPOI(data) {
         if (linesData) filterAndShowLayer('lines', 'lines-layer', linesData, 'feature');
         if (pointsData) filterAndShowLayer('points', 'points-layer', pointsData, 'feature');
     });
+
+    map.on('click', 'subpoints', (e) => {
+        const coordinates = e.features[0].geometry.coordinates.slice();
+        const properties = e.features[0].properties;
+        createSubPopup(e, currentLanguage);
+
+        map.flyTo({
+            center: coordinates,
+            zoom: 15,
+            speed: 1,
+            curve: 1
+        });
+    });
+
+    function createSubPopup(e, lang) {
+        const coordinates = e.features[0].geometry.coordinates.slice();
+        const properties = e.features[0].properties;
+
+        const subName = properties[`title_${lang}`] || '';
+        const subLocation = properties[`directions_${lang}`] || '';
+        const subContent = properties[`content_${lang}`] || '';
+
+        const subPopupContent = `
+            <div class="popup-content">
+                <div class="popup-top">
+                    <div class="popup-title">
+                        <strong>${subName}</strong><br>
+                        <em>${subLocation}</em><br>
+                    </div>
+                </div>
+                <div class="popup-middle">
+                    ${subContent}
+                </div>        
+            </div>
+        `;
+
+        const popup = new mapboxgl.Popup({ offset: 25})
+            .setLngLat(coordinates)
+            .setHTML(subPopupContent)
+            .addTo(map);
+    }
 }
 
 document.querySelectorAll('#language-selector input[name="language"]').forEach(radio => {
