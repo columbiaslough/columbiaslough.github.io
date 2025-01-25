@@ -225,7 +225,7 @@ function loadAdditionalFeatures() {
                 'icon-rotate': 45,
                 'icon-size': 0.1
             },
-            minzoom: 14
+            minzoom: 13
         });
 
         map.addLayer({
@@ -247,7 +247,7 @@ function loadAdditionalFeatures() {
                 'text-halo-color': 'white',
                 'text-halo-width': 0.6
             },
-            minzoom: 14
+            minzoom: 13
         });
                 
         const icons = ['restrooms', 'parking'];
