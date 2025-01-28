@@ -361,7 +361,7 @@ function addPOI(data) {
                 </div>  
                 <div class="popup-bottom">
                     <div class="links-container">
-                        <p>Links:</p>
+                        <p><b>Additional information:</b></p>
                         <p id="additional-links"></p>
                         <div class="map-icons">
                             <div class="map-icon-container" id="google-link" title="Open in Google Maps">
@@ -386,7 +386,7 @@ function addPOI(data) {
             </div>
         `;
 
-        const popup = new mapboxgl.Popup({ offset: 25})
+        const popup = new mapboxgl.Popup({ offset: -5})
             .setLngLat(coordinates)
             .setHTML(popupContent)
             .addTo(map);
@@ -429,8 +429,8 @@ function addPOI(data) {
         const coordinates = e.features[0].geometry.coordinates.slice();
         const zoomLevel = e.features[0].properties['zoom'];
         const [longitude, latitude] = coordinates;
-        const offsetLatitude = latitude - (0.03/zoomLevel);
-        const offsetLongitude = longitude - (0.01/zoomLevel);
+        const offsetLatitude = latitude - (0.06/zoomLevel);
+        const offsetLongitude = longitude - (0.015/zoomLevel);
 
         map.flyTo({
             center: [offsetLongitude, offsetLatitude],
@@ -496,7 +496,7 @@ function addPOI(data) {
             </div>
         `;
 
-        const popup = new mapboxgl.Popup({ offset: 25})
+        const popup = new mapboxgl.Popup({ offset: -5})
             .setLngLat(coordinates)
             .setHTML(subPopupContent)
             .addTo(map);
