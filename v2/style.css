@@ -70,23 +70,22 @@ body, html {
     transform: translateX(0);
 }
 
-#sidebar-header {
+.box-header {
     background-color: #486474;
     color: white;
-    padding: 20px;
+    padding: 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 2px solid #3a5360;
 }
 
-#sidebar-header h2 {
+.box-header {
     margin: 0;
     font-size: 1.4rem;
     font-weight: bold;
 }
 
-#close-sidebar {
+.close-type-button, .mapboxgl-popup-close-button {
     background: none;
     border: none;
     color: white;
@@ -98,7 +97,7 @@ body, html {
     height: auto;
 }
 
-#close-sidebar:hover {
+.close-type-button:hover {
     background-color: rgba(255, 255, 255, 0.2);
 }
 
@@ -106,6 +105,29 @@ body, html {
     height: calc(100% - 140px);
     overflow-y: auto;
     padding: 10px;
+}
+
+.sidebar-image-container {
+        position: relative;
+        display: inline-block;
+    }
+
+.sidebar-number-badge {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    background: rgba(255, 165, 0, 0.85);
+    color: white;
+    font-size: 0.85em;
+    font-weight: bold;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    pointer-events: none;
 }
 
 #sidebar-footer {
@@ -216,6 +238,7 @@ body, html {
     left: 20px;
     z-index: 1000;
 }
+
 .button {
     display: flex;
     justify-content: center;
@@ -257,15 +280,13 @@ body, html {
 }
 
 #control-panel {
-    font-family: Arial, sans-serif;
-    width: 300px;
-    padding: 10px;
+    width: 400px;
     border: 1px solid #ccc;
     border-radius: 10px;
     position: fixed;
-    top: 100px;
+    top: 70px;
     left: 0;
-    background-color: rgba(255, 255, 255, 0.9);
+    background-color: rgba(255, 255, 255, 0.95);
     z-index: 51;
     transform: translateX(-100%);
     transition: transform 0.3s ease-in-out;
@@ -278,96 +299,81 @@ body, html {
 }
 
 #control-panel p {
-    margin: 15px 0 5px;
+    margin: 0;
+    padding: 8px 12px;
     font-weight: bold;
+    background-color: #1592b5;
+    border-radius: 6px 6px 0 0;
+    color: #ffffff;
 }
 
-#settings-top {
-    display: flex;
-    width: 100%;
-    justify-content: space-between;
-}
-
-#lower-settings {
-    display: flex;
-}
-
-#basemap-selector {
-    flex-direction: column;
+.settings-section {
+    margin: 20px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: white;
 }
 
 .selector-box {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+    padding: 12px;
 }
 
-.selector-box input[type="radio"] {
+#filter-selector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    padding: 12px;
+}
+
+#filter-setting {
+    background-color: rgba(0, 0, 0, 0);
+}
+
+#basemap-selector {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 12px;
+}
+
+.selector-box input[type="radio"],
+.selector-box input[type="checkbox"] {
     display: none;
 }
 
 .selector-box label {
-    display: inline-block;
-    width: 60%;
-    max-width: 120px;
-    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
     text-align: center;
     border: 2px solid #ccc;
-    border-radius: 5px;
+    border-radius: 6px;
     background-color: white;
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
-.selector-box label:has(input[type="radio"]:checked) {
+.selector-box label:has(input[type="radio"]:checked),
+.selector-box label:has(input[type="checkbox"]:checked) {
     border-color: #1592b5;
-    background-color: #aacae2;
-    color: white;
+    background-color: rgba(21, 146, 181, 0.15);
 }
 
 .selector-box label:hover {
     border-color: #1592b5;
-}
-
-#pdf-modal {
-    display: none;
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 90vw;
-    height: 90vh;
-    background-color: white;
-    z-index: 1000;
-}
-
-#pdf-iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
-}
-
-#close-pdf {
-    position: absolute;
-    top: 10px;
-    right: 0;
-    z-index: 1001;
-    width: 50px;
-    height: 50px;
-}
-
-#full-screen-pdf {
-    position: absolute;
-    bottom: 10px;
-    right: 0;
-    z-index: 1001;
+    background-color: rgba(21, 146, 181, 0.05);
 }
 
 /* Header buttons styling */
 #header-left button {
     height: 40px;
     width: 40px;
-    background-color: #aaadca;
+    background-color: #1592b5;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     border-radius: 5px;
     border: none;
@@ -376,7 +382,7 @@ body, html {
 }
 
 #header-left button:hover {
-    background-color: #1592b5;
+    background-color: #aaadca;
 }
 
 #header-left button .fa-solid {
@@ -384,27 +390,15 @@ body, html {
     color: white;
 }
 
-#close-button, #close-pdf {
-    position: relative;
-    height: 20px;
-    width: 20px;
-}
-
 .fa-solid {
     font-size: 26px;
     color: white;
 }
 
-#filter-selector {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-}
-
-#filter-selector label {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+#filter-header {
+    display: flex;
+    justify-content: space-between;
+    background-color: #1592b5;
 }
 
 #filter-selector, #basemap-selector {
@@ -459,23 +453,25 @@ input[type="checkbox"] {
 }
 
 .mapboxgl-popup-content {
-    padding: 10px;
+    padding: 0;
     width: auto;
     max-width: 100%;
     min-width: min(300px, calc(100vw - 68px));
     max-height: calc(100vh - 160px);
     overflow-y: auto;
     overflow-x: hidden;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     margin: 0 !important;
+    background: #ffffff;
 }
-    .mapboxgl-popup-content *,
-    .popup-content * {
-        max-width: 100%;
-        box-sizing: border-box;
-        word-break: break-word;
-    }
+
+.mapboxgl-popup-content *,
+.popup-content * {
+    max-width: 100%;
+    box-sizing: border-box;
+    word-break: break-word;
+}
 
 .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip,
 .mapboxgl-popup-anchor-bottom-left .mapboxgl-popup-tip,
@@ -491,7 +487,39 @@ input[type="checkbox"] {
 .popup-content {
     display: flex;
     flex-direction: column;
+    gap: 0;
+    padding: 0;
+}
+
+.popup-top {
+    background-color: #486474;
+    padding: 8px 12px;
+    border-radius: 12px 12px 0 0;
+    color: white;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: space-between;
     gap: 6px;
+}
+
+.popup-title {
+    margin-bottom: 0;
+}
+
+.popup-title strong {
+    font-size: 15px;
+    display: block;
+    line-height: 1.2;
+}
+
+.popup-title em {
+    font-style: normal;
+    opacity: 0.9;
+    font-size: 13px;
+    line-height: 1.2;
+    display: block;
 }
 
 .popup-bottom {
@@ -499,15 +527,12 @@ input[type="checkbox"] {
     gap: 8px;
 }
 
-.popup-top {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 6px;
-}
-
 .links-container {
     flex: 0.5;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
 }
 
 .popup-icons {
@@ -516,21 +541,23 @@ input[type="checkbox"] {
     gap: 5px;
     align-items: flex-start;
     width: 100%;
+    margin: 10px;
 }
 
-.popup-title, .popup-icons, .popup-middle, .links-container, .image-carousel {
-    border-style: groove;
-    border-radius: 5px;
-    border-width: 2px;
-    border-color: #aaadca;
-    background-color: #e5e5ff;
-    margin: 1px;
-    padding: 3px;
+.popup-middle, .links-container, .image-carousel {
+    border: none;
+    margin-bottom: 8px;
+    padding: 12px;
+    background: none;
+    border-bottom: 1px solid #e0e0e0;
 }
 
 .popup-middle {
     max-height: 150px;
     overflow-y: auto;
+    line-height: 1.5;
+    color: #4a4a4a;
+    font-size: 14px;
 }
 
 .icon-container {
@@ -542,8 +569,8 @@ input[type="checkbox"] {
 
 .map-icon-container {
     position: relative;
-    width: 45px;
-    height: 45px;
+    width: 36px;
+    height: 36px;
     cursor: pointer;
     margin: 5px;
 }
@@ -559,6 +586,8 @@ input[type="checkbox"] {
     flex: 3;
     overflow: hidden;
     position: relative;
+    width: 100%;
+    padding: 12px;
 }
 
 .image-wrapper {
@@ -569,9 +598,14 @@ input[type="checkbox"] {
     position: relative;
 }
 
+.map-icons {
+    display: flex;
+}
+
 .popup-image {
-    height: 150px;
-    width: 150px;
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
     object-fit: cover;
 }
 
@@ -671,35 +705,61 @@ input[type="checkbox"] {
     #sidebar-content {
         height: calc(100% - 140px);
     }
-    
-    #sidebar-header h2 {
-        font-size: 1.2rem;
-    }
-    
-    #control-panel {
-        top: 70px;
-        max-height: calc(100vh - 80px);
-    }
-
-    .mapboxgl-popup {
-        left: 10px !important;
-        right: 10px !important;
-        bottom: 10px !important;
-        max-width: calc(100vw - 20px) !important;
-        transform-origin: bottom right !important;
-    }
-
-    .mapboxgl-popup-content {
-        font-size: 0.6rem;
-        width: calc(100vw - 40px);
-        max-width: calc(100vw - 40px);
-        min-width: 280px;
-        margin: 0 !important;
-    }
-
-    .icon-container {
-        width: 25px;
-        height: 25px;
-    }
 }
-  
+
+.no-images-message {
+    text-align: center;
+    color: #666;
+    padding: 12px;
+    font-style: italic;
+    margin: 0;
+}
+
+.mapboxgl-popup-close-button {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 1;
+}
+
+.links-container p {
+    margin: 0;
+}
+
+#reset-filters-button {
+    padding: 8px;
+    background-color: #1592b5;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+#reset-filters-button:hover {
+    background-color: #127a99;
+}
+
+#language-selector {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 12px;
+}
+
+#language-selector label {
+    width: 90%;
+    padding: 10px;
+}
+
+.filter-icon {
+    width: 24px;
+    height: 24px;
+    margin-top: 4px;
+    display: flex;
+    gap: 8px;
+}
+
+#sidebar-header h2 {
+    font-size: 1.2rem;
+}

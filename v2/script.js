@@ -2,26 +2,23 @@ let pointsData, linesData, polygonsData;
 let currentLanguage = 'en';
 let currentImageIndex = 0;
 let labelsVisible = false;
+let currentPopup = null;
 let poi;
 
 document.getElementById("settings-button").addEventListener("click", function(event) {
     event.stopPropagation();
     const controlPanel = document.getElementById('control-panel');
+    const sidebar = document.getElementById('sidebar');
+
+    if (sidebar.classList.contains('open')) {
+        sidebar.classList.remove('open');
+    }
     controlPanel.classList.toggle('open');
 });
 
 document.getElementById("close-button").addEventListener("click", function() {
     const controlPanel = document.getElementById('control-panel');
     controlPanel.classList.remove('open');
-});
-
-document.getElementById("pdf-button").addEventListener("click", function(event) {
-    event.stopPropagation();
-    document.getElementById('pdf-modal').style.display = "flex";
-});
-
-document.getElementById("close-pdf").addEventListener("click", function() {
-    document.getElementById('pdf-modal').style.display = "none";
 });
 
 document.getElementById("labels-button").addEventListener("click", function() {
@@ -35,6 +32,11 @@ document.getElementById("labels-button").addEventListener("click", function() {
 document.getElementById("sidebar-button").addEventListener("click", function(event) {
     event.stopPropagation();
     const sidebar = document.getElementById('sidebar');
+    const controlPanel = document.getElementById('control-panel');
+
+    if (controlPanel.classList.contains('open')) {
+        controlPanel.classList.remove('open');
+    }
     sidebar.classList.toggle('open');
 });
 
@@ -47,10 +49,6 @@ document.addEventListener("click", function(event) {
     const pdfModal = document.getElementById('pdf-modal');
     const controlPanel = document.getElementById('control-panel');
     const sidebar = document.getElementById('sidebar');
-
-    if (pdfModal.style.display === "flex" && !pdfModal.contains(event.target) && event.target.id !== "pdf-button") {
-        pdfModal.style.display = "none";
-    }
     if (controlPanel.classList.contains('open') && !controlPanel.contains(event.target) && event.target.id !== "settings-button") {
         controlPanel.classList.remove('open');
     }
@@ -137,6 +135,7 @@ document.querySelectorAll('#filter-selector input[type="checkbox"]').forEach(che
         if (selectedTags.length === 0) {
             map.setFilter('poi-circles', null);
             map.setFilter('poi-labels', null);
+            map.setFilter('poi-point-labels', null);
             return;
         }
 
@@ -145,8 +144,9 @@ document.querySelectorAll('#filter-selector input[type="checkbox"]').forEach(che
             ...selectedTags.map(tag => ['in', tag, ['get', 'tags']])
         ];
 
-        map.setFilter('poi-circles', filter);
-        map.setFilter('poi-labels', filter);
+    map.setFilter('poi-circles', filter);
+    map.setFilter('poi-labels', filter);
+    map.setFilter('poi-point-labels', filter);
     }); 
 });
 
@@ -455,29 +455,33 @@ function addPOI(data) {
 
 function getSidebarImageElement(images, pointId, name) {
     const hasRealImages = images.length > 0 && images[0] !== "image0";
-    return hasRealImages 
-        ? `<img src="../resources/popup-images/${images[0]}.jpg" alt="${name}" class="point-item-image">`
-        : `<div class="point-number-circle">${pointId}</div>`;
+    if (hasRealImages) {
+        return `
+            <div class="sidebar-image-container">
+                <img src="../resources/popup-images/${images[0]}.jpg" alt="${name}" class="point-item-image">
+                <span class="sidebar-number-badge">${pointId}</span>
+            </div>`;
+    } else {
+        return `<div class="point-number-circle">${pointId}</div>`;
+    }
 }
 
 function getPopupImageElement(images, pointId) {
     if (images.length > 0 && images[0] !== 'image0') {
         return `<img id="current-image" src="../resources/popup-images/${images[0]}.jpg" alt="picture" class="popup-image" />`;
     } else {
-        return `<img id="current-image" src="../resources/popup-images/image0.png" alt="logo" class="popup-image" />`;
+        return `<p class="no-images-message">No images available</p>`;
     }
 }
 
 function populateSidebar(data) {
-    const pointsList = document.getElementById('points-list');
-    pointsList.innerHTML = '';
-
     data.features.forEach(feature => {
         const properties = feature.properties;
         const name = properties[`name_${currentLanguage}`] || '';
         const content = properties[`contents_${currentLanguage}`] || '';
         const images = properties.images ? properties.images.split(',') : [];
         const pointId = properties.id || '';
+        const pointsList = document.getElementById('points-list');
         
         const imageElement = getSidebarImageElement(images, pointId, name);
         
@@ -520,13 +524,11 @@ function populateSidebar(data) {
 
 document.querySelectorAll('#language-selector input[name="language"]').forEach(radio => {
     radio.addEventListener('change', (e) => {
-        const pdfIframe = document.getElementById("pdf-iframe");
-        const fullscreenButton = document.getElementById("full-screen-link");
+        const pdfLink = document.getElementById("pdf-link");
         
         currentLanguage = e.target.value;
         console.log(`Language set to: ${currentLanguage}`);
-        pdfIframe.src = `../resources/NatureInTheCity_FINAL_${currentLanguage}.pdf`;
-        fullscreenButton.href = `../resources/NatureInTheCity_FINAL_${currentLanguage}.pdf`;
+        pdfLink.href = `../resources/NatureInTheCity_FINAL_${currentLanguage}.pdf`;
         
         if (map.getLayer('poi-point-labels')) {
             map.setLayoutProperty('poi-point-labels', 'text-field', ['get', `name_${currentLanguage}`]);
@@ -598,6 +600,11 @@ document.getElementById("home-button").addEventListener("click", function() {
 });
 
 function createPopupFromFeature(feature, lang) {
+    if (currentPopup) {
+        currentPopup.remove();
+        currentPopup = null;
+    }
+
     const coordinates = feature.geometry.coordinates.slice();
     const [longitude, latitude] = coordinates;
     const properties = feature.properties;
@@ -624,39 +631,37 @@ function createPopupFromFeature(feature, lang) {
             <div class="popup-content">
                 <div class="popup-top">
                     <div class="popup-title">
-                        <strong>${name}</strong><br>
-                        <em>${location}</em><br>
+                        <strong>${name}</strong>
+                        <em>${location}</em>
                     </div>
-                    <div class="popup-icons">
-                        ${iconsHtml}
-                    </div>
+                </div>
+                <div class="popup-icons">
+                    ${iconsHtml}
                 </div>
                 <div class="popup-middle">
                     ${content}
                 </div>
-                <div class="popup-bottom">
-                    <div class="links-container">
-                        <p><b>Additional information:</b></p>
-                        <p class="additional-links"></p>
-                        <div class="map-icons">
-                            <div class="map-icon-container" title="Open in Google Maps">
-                                <a href="https://maps.google.com/?q=${latitude},${longitude}" target="_blank"><img src="https://www.vectorlogo.zone/logos/google_maps/google_maps-icon.svg" class="icon-image"></a>
-                            </div>
-                            <div class="map-icon-container" title="Open in Apple Maps">
-                                <a href="http://maps.apple.com/?q=${latitude},${longitude}" target="_blank"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQk4kU3uCXeJ2uIbJL0bZQbm1KNRjnI7vW3Ww&s" class="icon-image"></a>
-                            </div>
-                            <div class="map-icon-container" title="Open in Bing Maps">
-                                <a href="https://bing.com/maps/default.aspx?cp=${latitude}~${longitude}&lvl=15" target="_blank"><img src="https://download.logo.wine/logo/Bing_Maps_Platform/Bing_Maps_Platform-Logo.wine.png" class="icon-image"></a>
-                            </div>
+                <div class="links-container">
+                    <p><b>Additional information:</b></p>
+                    <p class="additional-links"></p>
+                    <div class="map-icons">
+                        <div class="map-icon-container" title="Open in Google Maps">
+                            <a href="https://maps.google.com/?q=${latitude},${longitude}" target="_blank"><img src="https://www.vectorlogo.zone/logos/google_maps/google_maps-icon.svg" class="icon-image"></a>
+                        </div>
+                        <div class="map-icon-container" title="Open in Apple Maps">
+                            <a href="http://maps.apple.com/?q=${latitude},${longitude}" target="_blank"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQk4kU3uCXeJ2uIbJL0bZQbm1KNRjnI7vW3Ww&s" class="icon-image"></a>
+                        </div>
+                        <div class="map-icon-container" title="Open in Bing Maps">
+                            <a href="https://bing.com/maps/default.aspx?cp=${latitude}~${longitude}&lvl=15" target="_blank"><img src="https://download.logo.wine/logo/Bing_Maps_Platform/Bing_Maps_Platform-Logo.wine.png" class="icon-image"></a>
                         </div>
                     </div>
-                    <div class="image-carousel">
-                        <div class="image-wrapper">
-                            ${imageHtml}
-                        </div>
-                        <button class="carousel-button left-button prev-image" style="display:${hasRealImages && images.length > 1 ? 'block' : 'none'};">&#9664;</button>
-                        <button class="carousel-button right-button next-image" style="display:${hasRealImages && images.length > 1 ? 'block' : 'none'};">&#9654;</button>
+                </div>
+                <div class="image-carousel">
+                    <div class="image-wrapper">
+                        ${imageHtml}
                     </div>
+                    <button class="carousel-button left-button prev-image" style="display:${hasRealImages && images.length > 1 ? 'block' : 'none'};">&#9664;</button>
+                    <button class="carousel-button right-button next-image" style="display:${hasRealImages && images.length > 1 ? 'block' : 'none'};">&#9654;</button>
                 </div>
             </div>`;
 
@@ -690,22 +695,6 @@ function createPopupFromFeature(feature, lang) {
         });
     }
 
-    const links = properties.links || '';
-    const additionalLinksElement = root.querySelector('.additional-links');
-    const linksContainer = root.querySelector('.links-container');
-    const mapIconsContainer = root.querySelector('.map-icons');
-    const imageCarouselContainer = root.querySelector('.image-carousel');
-    if (links) {
-        if (additionalLinksElement) additionalLinksElement.innerHTML = links;
-        imageCarouselContainer.style.flex = '3';
-        linksContainer.style.flex = '2';
-        mapIconsContainer.style.display = 'flex';
-    } else {
-        if (additionalLinksElement) additionalLinksElement.style.display = 'none';
-        imageCarouselContainer.style.flex = '6';
-        linksContainer.style.flex = '1';
-        mapIconsContainer.style.display = 'block';
-    }
-
+    currentPopup = popup;
     return popup;
 }
