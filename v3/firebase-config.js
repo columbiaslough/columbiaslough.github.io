@@ -43,7 +43,12 @@ export async function fetchFeatures(collectionName) {
     querySnapshot.forEach((doc) => {
         const data = doc.data();
         
-        const images = Array.isArray(data.images) ? data.images : [];
+        const images = Array.isArray(data.images)
+            ? data.images
+            : typeof data.images === 'string' && data.images.trim() !== ''
+                ? data.images.split(',').map(img => img.trim())
+                : [];
+
         const tags = Array.isArray(data.tags) ? data.tags : [];
         
         let geometry;

@@ -126,7 +126,7 @@ export function addLinesLayer(map, data) {
     });
 }
 
-export function addPointsLayer(map, data, iconNames = ['restrooms', 'parking']) {
+export function addPointsLayer(map, data, iconNames = ['restrooms', 'parking', 'boats']) {
     if (!data || !data.features || data.features.length === 0) {
         console.warn('No point features to add');
         return Promise.resolve();
@@ -208,17 +208,19 @@ export function addPOILayer(map, data, currentLanguage = 'en') {
     });
 }
 
-export function getImageUrl(imageName) {
-    return `https://i.ibb.co/jZJpbrrV/${imageName}.jpg`;
-}
-
 export function parseImages(imagesString) {
     if (!imagesString) return [];
     return imagesString.split(',').map(img => img.trim()).filter(Boolean);
 }
 
 export function hasRealImages(images) {
-    return images.length > 0 && images[0] !== 'image0';
+    return images.length > 0 && images[0] !== 'image0' && images[0].startsWith('http');
+}
+
+export function getImageUrl(imageUrl) {
+    if (imageUrl && imageUrl.startsWith('http')) {
+        return imageUrl;
+    }
 }
 
 export function filterAndShowLayer(map, sourceId, layerId, data, property, filterValue) {
@@ -263,16 +265,19 @@ export function getPopupImageHtml(images, pointId, isEditable = false) {
     const realImages = hasRealImages(images);
     
     if (realImages) {
-        return `<img id="current-image" src="${getImageUrl(images[0])}" alt="picture" class="popup-image" />`;
+        return `<img id="current-image" src="${images[0]}" alt="picture" class="popup-image" />`;
     } else {
         return `<p class="no-images-message">No images available</p>`;
     }
 }
 
-export function getIconsHtml(tagsString) {
-    if (!tagsString) return '';
+export function getIconsHtml(tagsInput) {
+    if (!tagsInput) return '';
     
-    const tags = tagsString.split(',').map(tag => tag.trim()).filter(Boolean);
+    const tags = Array.isArray(tagsInput) 
+        ? tagsInput 
+        : tagsInput.split(',').map(tag => tag.trim()).filter(Boolean);
+    
     return tags.map(tag => `
         <div class="icon-container" title="${tag}">
             <img src="../resources/icons/${tag}.svg" alt="${tag}" class="icon-image">

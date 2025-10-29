@@ -610,6 +610,7 @@ input[type="checkbox"] {
 .popup-image {
     width: 100%;
     height: auto;
+    max-height: 300px;
     border-radius: 4px;
     object-fit: cover;
 }

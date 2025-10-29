@@ -108,6 +108,29 @@
         #logout-button:hover {
             background: #c0392b;
         }
+        #add-poi-button {
+            padding: 0.5rem 1rem;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #add-poi-button:hover {
+            background: #229954;
+        }
+        .add-poi-mode-active {
+            background: #e67e22 !important;
+        }
+        .add-poi-instructions {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            text-align: center;
+        }
         .popup-content {
             max-width: 350px;
         }
@@ -122,6 +145,7 @@
             border-radius: 4px;
         }
         .edit-form input[type="text"],
+        .edit-form input[type="number"],
         .edit-form textarea {
             width: 100%;
             padding: 8px;
@@ -283,7 +307,7 @@
         .drawn-feature-item {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             padding: 8px;
             margin-bottom: 5px;
             background: white;
@@ -384,6 +408,9 @@
             <h1>Columbia Slough Watershed (Data Edit)</h1>
         </div>
         <div id="header-right">
+            <button id="add-poi-button" style="display: none;">
+                <i class="fa fa-map-marker-alt"></i> Add POI
+            </button>
             <button id="logout-button" style="display: none;">Logout</button>
         </div>
     </header>
@@ -449,12 +476,17 @@
         let draw = null;
         let drawnFeatures = [];
         let isDrawMode = false;
+        let selectedAmenities = [];
+        let isAddingPOI = false;
+        let newPOICoordinates = null;
+        let addPOIMarker = null;
         const IMGBB_API_KEY = '974d08f8ae673541331db22c6d6e7c66';
         const IMGBB_ALBUM_ID = '9nnzWR';
 
         const authOverlay = document.getElementById('auth-overlay');
         const loginButton = document.getElementById('login-button');
         const logoutButton = document.getElementById('logout-button');
+        const addPOIButton = document.getElementById('add-poi-button');
         const emailInput = document.getElementById('email');
         const passwordInput = document.getElementById('password');
         const errorMessage = document.getElementById('error-message');
@@ -534,7 +566,6 @@
                 displayControlsDefault: false,
                 controls: {},
                 styles: [
-
                     {
                         'id': 'gl-draw-polygon-fill',
                         'type': 'fill',
@@ -544,7 +575,6 @@
                             'fill-opacity': 0.3
                         }
                     },
-
                     {
                         'id': 'gl-draw-polygon-stroke-active',
                         'type': 'line',
@@ -558,7 +588,6 @@
                             'line-width': 3
                         }
                     },
-
                     {
                         'id': 'gl-draw-line',
                         'type': 'line',
@@ -572,7 +601,6 @@
                             'line-width': 3
                         }
                     },
-
                     {
                         'id': 'gl-draw-point',
                         'type': 'circle',
@@ -582,7 +610,6 @@
                             'circle-color': '#3498db'
                         }
                     },
-
                     {
                         'id': 'gl-draw-polygon-and-line-vertex-active',
                         'type': 'circle',
@@ -607,6 +634,30 @@
             });
 
             map.addControl(new mapboxgl.NavigationControl());
+            
+            map.on('click', (e) => {
+                if (isAddingPOI && !e.originalEvent.defaultPrevented) {
+                    newPOICoordinates = [e.lngLat.lng, e.lngLat.lat];
+                    
+                    if (addPOIMarker) {
+                        addPOIMarker.remove();
+                    }
+                    
+                    addPOIMarker = new mapboxgl.Marker({
+                        draggable: true,
+                        color: '#27ae60'
+                    })
+                    .setLngLat(newPOICoordinates)
+                    .addTo(map);
+                    
+                    addPOIMarker.on('dragend', () => {
+                        const lngLat = addPOIMarker.getLngLat();
+                        newPOICoordinates = [lngLat.lng, lngLat.lat];
+                    });
+                    
+                    openNewPOIPanel();
+                }
+            });
         }
 
         function handlePOIClick(e) {
@@ -652,6 +703,7 @@
             editPanel.style.display = 'flex';
             
             pendingImageUploads = [];
+            selectedAmenities = Array.isArray(properties.tags) ? [...properties.tags] : [];
 
             body.innerHTML = `
                 <form class="edit-form">
@@ -723,7 +775,7 @@
                         <textarea id="links-text" rows="3">${(properties.links || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}</textarea>
                     </div>
 
-                    <div class="popup-icons">
+                    <div class="popup-icons" id="amenities-display">
                         ${iconsHtml}
                         <button type="button" id="edit-amenities-btn"
                             style="margin-top:5px; background:#3498db; color:white; border:none; border-radius:4px;
@@ -750,10 +802,11 @@
             updateLanguageFields('en');
 
             document.getElementById('edit-amenities-btn').addEventListener('click', () => {
-                openAmenitiesModal(properties.tags);
+                openAmenitiesModal(selectedAmenities);
             });
 
-            document.getElementById('close-panel-btn').onclick = () => {
+            const closePanelBtn = document.getElementById('close-panel-btn');
+            closePanelBtn.onclick = () => {
                 editPanel.style.display = 'none';
                 
                 if (moveMarker) {
@@ -763,6 +816,13 @@
                 isMovingPoint = false;
                 newCoordinates = null;
                 document.getElementById('move-point-btn').classList.remove('move-mode-active');
+                
+                if (draw) {
+                    draw.changeMode('simple_select');
+                    draw.deleteAll();
+                }
+                drawnFeatures = [];
+                isDrawMode = false;
             };
 
             const saveButton = body.querySelector('.save-button');
@@ -817,9 +877,7 @@
 
                     const tagCheckboxes = document.querySelectorAll('#amenities-list input[type="checkbox"]');
                     if (tagCheckboxes.length > 0) {
-                        updated.tags = Array.from(tagCheckboxes)
-                            .filter(i => i.checked)
-                            .map(i => i.value);
+                        updated.tags = selectedAmenities;
                     }
 
                     const collection = 'poi';
@@ -854,8 +912,16 @@
                                 const collection = getCollectionForGeometry(drawnFeature.geometry.type);
                                 const featureData = {
                                     feature: featureName,
-                                    geometry: drawnFeature.geometry
+                                    geometryJson: JSON.stringify(drawnFeature.geometry)
                                 };
+                                
+                                if (drawnFeature.geometry.type === 'Point') {
+                                    const featureIndex = drawnFeatures.indexOf(drawnFeature);
+                                    const typeSelect = document.getElementById(`point-type-${featureIndex}`);
+                                    if (typeSelect && typeSelect.value) {
+                                        featureData.type = typeSelect.value;
+                                    }
+                                }
                                 
                                 const addResult = await addFeature(collection, featureData);
                                 if (addResult.success) {
@@ -893,6 +959,212 @@
                 }
             });
 
+        }
+
+        function openNewPOIPanel() {
+            currentFeature = null;
+            const editPanel = document.getElementById('edit-panel');
+            const body = document.getElementById('edit-panel-body');
+            editPanel.style.display = 'flex';
+            
+            pendingImageUploads = [];
+            selectedAmenities = [];
+
+            body.innerHTML = `
+                <form class="edit-form">
+                    <div class="add-poi-instructions">
+                        Creating new POI at coordinates: ${newPOICoordinates[1].toFixed(6)}°N, ${Math.abs(newPOICoordinates[0]).toFixed(6)}°W
+                    </div>
+                    
+                    <select class="language-select" id="lang-select">
+                        <option value="en">English</option>
+                        <option value="es">Spanish</option>
+                        <option value="ru">Russian</option>
+                        <option value="uk">Ukrainian</option>
+                    </select>
+
+                    <!-- English fields -->
+                    <div id="en-fields">
+                        <label for="name_en">Name: *</label>
+                        <input type="text" id="name_en" value="" required />
+                        
+                        <label for="location_en">Location:</label>
+                        <input type="text" id="location_en" value="" />
+                        
+                        <label for="contents_en">Content:</label>
+                        <textarea id="contents_en"></textarea>
+                    </div>
+
+                    <!-- Spanish fields -->
+                    <div id="es-fields" style="display:none;">
+                        <label for="name_es">Name:</label>
+                        <input type="text" id="name_es" value="" />
+                        
+                        <label for="location_es">Location:</label>
+                        <input type="text" id="location_es" value="" />
+                        
+                        <label for="contents_es">Content:</label>
+                        <textarea id="contents_es"></textarea>
+                    </div>
+
+                    <!-- Russian fields -->
+                    <div id="ru-fields" style="display:none;">
+                        <label for="name_ru">Name:</label>
+                        <input type="text" id="name_ru" value="" />
+                        
+                        <label for="location_ru">Location:</label>
+                        <input type="text" id="location_ru" value="" />
+                        
+                        <label for="contents_ru">Content:</label>
+                        <textarea id="contents_ru"></textarea>
+                    </div>
+
+                    <!-- Ukrainian fields -->
+                    <div id="uk-fields" style="display:none;">
+                        <label for="name_uk">Name:</label>
+                        <input type="text" id="name_uk" value="" />
+                        
+                        <label for="location_uk">Location:</label>
+                        <input type="text" id="location_uk" value="" />
+                        
+                        <label for="contents_uk">Content:</label>
+                        <textarea id="contents_uk"></textarea>
+                    </div>
+
+                    <div id="additional-info">
+                        <label for="links-text">Links (HTML):</label>
+                        <textarea id="links-text" rows="3"></textarea>
+                        
+                        <label for="zoom-level">Zoom Level:</label>
+                        <input type="number" id="zoom-level" value="15" min="10" max="20" step="0.5" />
+                    </div>
+
+                    <div class="popup-icons" id="amenities-display">
+                        <button type="button" id="edit-amenities-btn"
+                            style="margin-top:5px; background:#3498db; color:white; border:none; border-radius:4px;
+                                padding:6px 10px; cursor:pointer;">
+                            Edit Amenities
+                        </button>
+                    </div>
+                    
+                    <div id="upload-status"></div>
+                    
+                    <button type="button" class="save-button">Save New POI</button>
+                </form>
+            `;
+
+            const langSelect = document.getElementById('lang-select');
+            langSelect.addEventListener('change', (e) => {
+                updateLanguageFields(e.target.value);
+            });
+
+            updateLanguageFields('en');
+
+            document.getElementById('edit-amenities-btn').addEventListener('click', () => {
+                openAmenitiesModal(selectedAmenities);
+            });
+
+            const closePanelBtn = document.getElementById('close-panel-btn');
+            closePanelBtn.onclick = () => {
+                editPanel.style.display = 'none';
+                
+                isAddingPOI = false;
+                addPOIButton.classList.remove('add-poi-mode-active');
+                addPOIButton.innerHTML = '<i class="fa fa-map-marker-alt"></i> Add POI';
+                map.getCanvas().style.cursor = '';
+                
+                if (addPOIMarker) {
+                    addPOIMarker.remove();
+                    addPOIMarker = null;
+                }
+                newPOICoordinates = null;
+            };
+
+            const saveButton = body.querySelector('.save-button');
+            saveButton.addEventListener('click', async () => {
+                const statusDiv = document.getElementById('upload-status');
+                
+                const nameEn = document.getElementById('name_en').value.trim();
+                if (!nameEn) {
+                    statusDiv.className = 'upload-status error';
+                    statusDiv.textContent = 'Error: Name (English) is required';
+                    return;
+                }
+                
+                try {
+                    if (pendingImageUploads.length > 0) {
+                        statusDiv.className = 'upload-status uploading';
+                        statusDiv.textContent = `Uploading ${pendingImageUploads.length} image(s)...`;
+                        
+                        await uploadImagesToImgBB(pendingImageUploads);
+                    }
+                    
+                    const newPOIData = {
+                        name_en: document.getElementById('name_en').value,
+                        location_en: document.getElementById('location_en').value,
+                        contents_en: document.getElementById('contents_en').value,
+                        name_es: document.getElementById('name_es').value,
+                        location_es: document.getElementById('location_es').value,
+                        contents_es: document.getElementById('contents_es').value,
+                        name_ru: document.getElementById('name_ru').value,
+                        location_ru: document.getElementById('location_ru').value,
+                        contents_ru: document.getElementById('contents_ru').value,
+                        name_uk: document.getElementById('name_uk').value,
+                        location_uk: document.getElementById('location_uk').value,
+                        contents_uk: document.getElementById('contents_uk').value,
+                        links: document.getElementById('links-text').value,
+                        zoom: parseFloat(document.getElementById('zoom-level').value) || 15,
+                        tags: selectedAmenities,
+                        geometry: {
+                            type: 'Point',
+                            coordinates: newPOICoordinates
+                        },
+                        geopoint: {
+                            latitude: newPOICoordinates[1],
+                            longitude: newPOICoordinates[0]
+                        }
+                    };
+                    
+                    if (pendingImageUploads.length > 0) {
+                        const imageUrls = pendingImageUploads.map(f => f.url).filter(Boolean);
+                        newPOIData.images = imageUrls.join(',');
+                    }
+                    
+                    statusDiv.className = 'upload-status uploading';
+                    statusDiv.textContent = 'Creating new POI...';
+                    
+                    const result = await addFeature('poi', newPOIData);
+                    
+                    if (result.success) {
+                        statusDiv.className = 'upload-status success';
+                        statusDiv.textContent = 'POI created successfully!';
+                        
+                        pendingImageUploads = [];
+                        
+                        await loadAllData();
+                        
+                        setTimeout(() => {
+                            editPanel.style.display = 'none';
+                            isAddingPOI = false;
+                            addPOIButton.classList.remove('add-poi-mode-active');
+                            addPOIButton.innerHTML = '<i class="fa fa-map-marker-alt"></i> Add POI';
+                            map.getCanvas().style.cursor = '';
+                            
+                            if (addPOIMarker) {
+                                addPOIMarker.remove();
+                                addPOIMarker = null;
+                            }
+                            newPOICoordinates = null;
+                        }, 2000);
+                    } else {
+                        statusDiv.className = 'upload-status error';
+                        statusDiv.textContent = 'Error creating POI: ' + result.error;
+                    }
+                } catch (error) {
+                    statusDiv.className = 'upload-status error';
+                    statusDiv.textContent = 'Error: ' + error.message;
+                }
+            });
         }
 
 
@@ -1031,6 +1303,7 @@
             if (result.success) {
                 authOverlay.style.display = 'none';
                 logoutButton.style.display = 'block';
+                addPOIButton.style.display = 'block';
                 errorMessage.textContent = '';
                 loadAllData();
             } else {
@@ -1043,6 +1316,7 @@
             if (result.success) {
                 authOverlay.style.display = 'flex';
                 logoutButton.style.display = 'none';
+                addPOIButton.style.display = 'none';
                 emailInput.value = '';
                 passwordInput.value = '';
                 if (map) {
@@ -1052,16 +1326,56 @@
             }
         });
 
+        addPOIButton.addEventListener('click', () => {
+            isAddingPOI = !isAddingPOI;
+            
+            if (isAddingPOI) {
+                addPOIButton.classList.add('add-poi-mode-active');
+                addPOIButton.innerHTML = '<i class="fa fa-times"></i> Cancel';
+                
+                document.getElementById('edit-panel').style.display = 'none';
+                
+                if (addPOIMarker) {
+                    addPOIMarker.remove();
+                    addPOIMarker = null;
+                }
+                
+                if (isMovingPoint) {
+                    isMovingPoint = false;
+                    document.getElementById('move-point-btn').classList.remove('move-mode-active');
+                    if (moveMarker) {
+                        moveMarker.remove();
+                        moveMarker = null;
+                    }
+                }
+                
+                map.getCanvas().style.cursor = 'crosshair';
+                
+            } else {
+                addPOIButton.classList.remove('add-poi-mode-active');
+                addPOIButton.innerHTML = '<i class="fa fa-map-marker-alt"></i> Add POI';
+                map.getCanvas().style.cursor = '';
+                
+                if (addPOIMarker) {
+                    addPOIMarker.remove();
+                    addPOIMarker = null;
+                }
+                newPOICoordinates = null;
+            }
+        });
+
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 authOverlay.style.display = 'none';
                 logoutButton.style.display = 'block';
+                addPOIButton.style.display = 'block';
                 if (!map) {
                     loadAllData();
                 }
             } else {
                 authOverlay.style.display = 'flex';
                 logoutButton.style.display = 'none';
+                addPOIButton.style.display = 'none';
                 if (map) {
                     map.remove();
                     map = null;
@@ -1088,10 +1402,32 @@
             modal.style.display = 'flex';
 
             document.getElementById('close-amenities-btn').onclick = () => {
-                const selected = Array.from(list.querySelectorAll('input:checked')).map(i => i.value);
-                console.log('Selected amenities:', selected);
+                selectedAmenities = Array.from(list.querySelectorAll('input:checked')).map(i => i.value);
+                console.log('Selected amenities:', selectedAmenities);
+              
+                updateAmenitiesDisplay();
+                
                 modal.style.display = 'none';
             };
+        }
+
+        function updateAmenitiesDisplay() {
+            const amenitiesDisplay = document.getElementById('amenities-display');
+            if (!amenitiesDisplay) return;
+            
+            const iconsHtml = getIconsHtml(selectedAmenities);
+            amenitiesDisplay.innerHTML = `
+                ${iconsHtml}
+                <button type="button" id="edit-amenities-btn"
+                    style="margin-top:5px; background:#3498db; color:white; border:none; border-radius:4px;
+                        padding:6px 10px; cursor:pointer;">
+                    Edit Amenities
+                </button>
+            `;
+            
+            document.getElementById('edit-amenities-btn').addEventListener('click', () => {
+                openAmenitiesModal(selectedAmenities);
+            });
         }
 
         function getCollectionForGeometry(geometryType) {
@@ -1109,7 +1445,17 @@
                     <strong>Drawn Features (${drawnFeatures.length}):</strong>
                     ${drawnFeatures.map((f, i) => `
                         <div class="drawn-feature-item">
-                            <span>${f.geometry.type} ${i + 1}</span>
+                            <div style="flex: 1;">
+                                <span>${f.geometry.type} ${i + 1}</span>
+                                ${f.geometry.type === 'Point' ? `
+                                    <select id="point-type-${i}" style="width: 100%; margin-top: 5px; padding: 4px; border: 1px solid #ddd; border-radius: 3px;">
+                                        <option value="">None</option>
+                                        <option value="parking">Parking</option>
+                                        <option value="restrooms">Restrooms</option>
+                                        <option value="boats">Boats</option>
+                                    </select>
+                                ` : ''}
+                            </div>
                             <button type="button" onclick="removeDrawnFeature(${i})">Delete</button>
                         </div>
                     `).join('')}

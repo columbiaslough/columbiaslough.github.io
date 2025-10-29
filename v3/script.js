@@ -206,6 +206,8 @@ function initializeMap() {
             setupPOIClickHandlers();
         }
     });
+
+    populateSidebar(poiData);
 }
 
 function loadAdditionalFeatures() {
@@ -388,7 +390,7 @@ function populateSidebar(data) {
         const name = properties[`name_${currentLanguage}`] || '';
         const content = properties[`contents_${currentLanguage}`] || '';
         const images = parseImages(properties.images);
-        const pointId = properties.id || '';
+        const pointId = properties.id.split("_")[1] || '';
         
         const imageElement = getSidebarImageElement(images, pointId, name);
         
@@ -426,6 +428,8 @@ function populateSidebar(data) {
         });
         
         pointsList.appendChild(pointItem);
+
+        console.log(`Added sidebar item for point ID: ${pointId}, Name: ${name}`);
     });
 }
 
@@ -585,6 +589,5 @@ function createPopupFromFeature(feature, lang) {
     }
 
     currentPopup = popup;
-    populateSidebar(poiData);
     return popup;
 }
