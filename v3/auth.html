@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Columbia Slough Watershed (Data Edit)</title>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.js"></script>
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 100;
+        }
+        #header-center h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        #header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        #header-logo {
+            height: 40px;
+        }
+        #map {
+            position: absolute;
+            top: 60px;
+            bottom: 0;
+            width: 100%;
+        }
+        .auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .login-panel {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        .login-panel h2 {
+            margin-bottom: 1.5rem;
+            text-align: center;
+            color: #333;
+        }
+        .login-panel input {
+            width: 100%;
+            padding: 0.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .login-panel button {
+            width: 100%;
+            padding: 0.75rem;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .login-panel button:hover {
+            background: #45a049;
+        }
+        .error-message {
+            color: red;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        #logout-button {
+            padding: 0.5rem 1rem;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #logout-button:hover {
+            background: #c0392b;
+        }
+        .popup-content {
+            max-width: 350px;
+        }
+        .popup-content h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        .popup-image {
+            width: 100%;
+            height: auto;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .edit-form input[type="text"],
+        .edit-form textarea {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .edit-form textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .edit-form label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .save-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .save-button:hover {
+            background-color: #45a049;
+        }
+        .language-select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+            font-weight: bold;
+        }
+        .icon-container {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            margin-right: 5px;
+        }
+        .icon-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .popup-icons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        .no-images-message {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+
+        #edit-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 380px;
+            max-height: 80vh;
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 999;
+        }
+
+        #edit-panel .panel-body {
+            padding: 10px 15px;
+            overflow-y: auto;
+        }
+
+        #edit-panel .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            background: #2c3e50;
+            color: #fff;
+        }
+
+        #edit-panel .panel-header button,
+        #edit-panel .panel-header select {
+            background: #34495e;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 10px;
+            cursor: pointer;
+            margin-right: 6px;
+        }
+
+        #edit-panel .panel-header button:hover {
+            background: #3d566e;
+        }
+
+        #edit-panel .panel-header input[type="file"] {
+            display: none;
+        }
+
+        .upload-status {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .upload-status.uploading {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .upload-status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .upload-status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .move-mode-active {
+            background: #f39c12 !important;
+        }
+
+        .draw-mode-active {
+            background: #3498db !important;
+        }
+
+        .draw-instructions {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .drawn-features-list {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .drawn-feature-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 5px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        .drawn-feature-item button {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .drawn-feature-item button:hover {
+            background: #c0392b;
+        }
+
+        .move-instructions {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        #edit-panel .control-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #amenities-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001;
+        }
+
+        #amenities-modal .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 400px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        #amenities-modal h3 {
+            margin-top: 0;
+        }
+
+        #amenities-modal button {
+            margin-top: 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip,
+        .mapboxgl-popup-anchor-bottom-left .mapboxgl-popup-tip,
+        .mapboxgl-popup-anchor-bottom-right .mapboxgl-popup-tip,
+        .mapboxgl-popup-anchor-top .mapboxgl-popup-tip,
+        .mapboxgl-popup-anchor-top-left .mapboxgl-popup-tip,
+        .mapboxgl-popup-anchor-top-right .mapboxgl-popup-tip,
+        .mapboxgl-popup-anchor-left .mapboxgl-popup-tip,
+        .mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="auth-overlay" class="auth-overlay">
+        <div class="login-panel">
+            <h2>Login to Edit Data</h2>
+            <div id="error-message" class="error-message"></div>
+            <input type="email" id="email" placeholder="Email" required>
+            <input type="password" id="password" placeholder="Password" required>
+            <button id="login-button">Login</button>
+        </div>
+    </div>
+    <header id="main-header">
+        <div id="header-center">
+            <h1>Columbia Slough Watershed (Data Edit)</h1>
+        </div>
+        <div id="header-right">
+            <button id="logout-button" style="display: none;">Logout</button>
+        </div>
+    </header>
+    <div id="map"></div>
+
+    <div id="edit-panel">
+        <div class="panel-header">
+            <div class="control-group">
+                <select id="add-feature-dropdown">
+                    <option disabled selected>Add Features</option>
+                    <option value="point">Add Point</option>
+                    <option value="line">Add Line</option>
+                    <option value="polygon">Add Polygon</option>
+                </select>
+                <input type="file" id="image-upload-input" accept="image/*" multiple style="display:none;" />
+                <button id="upload-images-btn" title="Upload Images"><i class="fa fa-upload"></i></button>
+                <button id="move-point-btn" title="Move Point"><i class="fa fa-arrows-alt"></i></button>
+            </div>
+            <button id="close-panel-btn"><i class="fa fa-times"></i></button>
+        </div>
+        <div class="panel-body" id="edit-panel-body">
+        </div>
+    </div>
+
+    <div id="amenities-modal">
+        <div class="modal-content">
+            <h3>Edit Amenities</h3>
+            <div id="amenities-list">
+            </div>
+            <button id="close-amenities-btn">Done</button>
+        </div>
+    </div>
+
+
+    <script type="module">
+        import { auth, db, loginUser, logoutUser, fetchFeatures, updateFeature, addFeature } from './firebase-config.js';
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
+        import {
+            initializeMapBase,
+            addPolygonsLayer,
+            addLinesLayer,
+            addPointsLayer,
+            addPOILayer,
+            getImageUrl,
+            parseImages,
+            hasRealImages,
+            filterAndShowLayer,
+            updatePOILanguage,
+            getPopupImageHtml,
+            getIconsHtml,
+            getMapLinksHtml
+        } from './shared-map-functions.js';
+
+        let map;
+        let pointsData, linesData, polygonsData, poiData;
+        let currentLanguage = 'en';
+        let currentPopup = null;
+        let pendingImageUploads = [];
+        let currentFeature = null;
+        let moveMarker = null;
+        let isMovingPoint = false;
+        let newCoordinates = null;
+        let draw = null;
+        let drawnFeatures = [];
+        let isDrawMode = false;
+        const IMGBB_API_KEY = '974d08f8ae673541331db22c6d6e7c66';
+        const IMGBB_ALBUM_ID = '9nnzWR';
+
+        const authOverlay = document.getElementById('auth-overlay');
+        const loginButton = document.getElementById('login-button');
+        const logoutButton = document.getElementById('logout-button');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const errorMessage = document.getElementById('error-message');
+
+        async function loadAllData() {
+            try {
+                const [points, lines, polygons, poi] = await Promise.all([
+                    fetchFeatures('points'),
+                    fetchFeatures('lines'),
+                    fetchFeatures('polygons'),
+                    fetchFeatures('poi')
+                ]);
+                
+                pointsData = points;
+                linesData = lines;
+                polygonsData = polygons;
+                poiData = poi;
+
+                console.log('Data loaded:', { 
+                    points: pointsData.features.length, 
+                    lines: linesData.features.length, 
+                    polygons: polygonsData.features.length, 
+                    poi: poiData.features.length 
+                });
+
+                initializeMap();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                errorMessage.textContent = 'Error loading map data. Please try again.';
+            }
+        }
+
+        function initializeMap() {
+            try {
+                map = initializeMapBase(mapboxgl);
+
+                map.on('load', function() {
+                    addAllLayers();
+                });
+
+                map.on('error', function(e) {
+                    console.error('Map error:', e);
+                });
+            } catch (error) {
+                console.error('Error initializing map:', error);
+                errorMessage.textContent = 'Error initializing map. Please try again.';
+            }
+        }
+
+        function addAllLayers() {
+            console.log('Adding layers...');
+            
+            addPolygonsLayer(map, polygonsData);
+            addLinesLayer(map, linesData);
+            
+            addPointsLayer(map, pointsData).then(() => {
+                console.log('Points layer added');
+            });
+
+            addPOILayer(map, poiData, currentLanguage);
+
+            map.on('click', 'poi-circles', (e) => {
+                if (e.features.length > 0) {
+                    handlePOIClick(e);
+                }
+            });
+
+            map.on('mouseenter', 'poi-circles', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            map.on('mouseleave', 'poi-circles', () => {
+                map.getCanvas().style.cursor = '';
+            });
+
+            draw = new MapboxDraw({
+                displayControlsDefault: false,
+                controls: {},
+                styles: [
+
+                    {
+                        'id': 'gl-draw-polygon-fill',
+                        'type': 'fill',
+                        'filter': ['all', ['==', '$type', 'Polygon'], ['!=', 'mode', 'static']],
+                        'paint': {
+                            'fill-color': '#3498db',
+                            'fill-opacity': 0.3
+                        }
+                    },
+
+                    {
+                        'id': 'gl-draw-polygon-stroke-active',
+                        'type': 'line',
+                        'filter': ['all', ['==', '$type', 'Polygon'], ['!=', 'mode', 'static']],
+                        'layout': {
+                            'line-cap': 'round',
+                            'line-join': 'round'
+                        },
+                        'paint': {
+                            'line-color': '#3498db',
+                            'line-width': 3
+                        }
+                    },
+
+                    {
+                        'id': 'gl-draw-line',
+                        'type': 'line',
+                        'filter': ['all', ['==', '$type', 'LineString'], ['!=', 'mode', 'static']],
+                        'layout': {
+                            'line-cap': 'round',
+                            'line-join': 'round'
+                        },
+                        'paint': {
+                            'line-color': '#3498db',
+                            'line-width': 3
+                        }
+                    },
+
+                    {
+                        'id': 'gl-draw-point',
+                        'type': 'circle',
+                        'filter': ['all', ['==', '$type', 'Point'], ['!=', 'mode', 'static']],
+                        'paint': {
+                            'circle-radius': 6,
+                            'circle-color': '#3498db'
+                        }
+                    },
+
+                    {
+                        'id': 'gl-draw-polygon-and-line-vertex-active',
+                        'type': 'circle',
+                        'filter': ['all', ['==', 'meta', 'vertex'], ['!=', 'mode', 'static']],
+                        'paint': {
+                            'circle-radius': 5,
+                            'circle-color': '#fff',
+                            'circle-stroke-color': '#3498db',
+                            'circle-stroke-width': 2
+                        }
+                    }
+                ]
+            });
+
+            map.addControl(draw, 'top-right');
+
+            map.on('draw.create', (e) => {
+                const feature = e.features[0];
+                drawnFeatures.push(feature);
+                console.log('Feature drawn:', feature);
+                updateDrawnFeaturesList();
+            });
+
+            map.addControl(new mapboxgl.NavigationControl());
+        }
+
+        function handlePOIClick(e) {
+            const feature = e.features[0];
+            const clickedName = feature.properties['name_en'];
+            const coordinates = feature.geometry.coordinates.slice();
+            const zoomLevel = feature.properties['zoom'] || 15;
+
+            createEditPopup(feature);
+
+            map.flyTo({
+                center: coordinates,
+                zoom: zoomLevel,
+                speed: 1,
+                curve: 1
+            });
+
+            if (polygonsData) {
+                filterAndShowLayer(map, 'polygons', 'polygons-layer', polygonsData, 'feature', clickedName);
+            }
+            if (linesData) {
+                filterAndShowLayer(map, 'lines', 'lines-layer', linesData, 'feature', clickedName);
+            }
+            if (pointsData) {
+                filterAndShowLayer(map, 'points', 'points-layer', pointsData, 'feature', clickedName);
+            }
+        }
+
+        function createEditPopup(feature) {
+            currentFeature = feature;
+            const properties = feature.properties;
+            const coordinates = feature.geometry.coordinates.slice();
+            const [longitude, latitude] = coordinates;
+
+            const images = parseImages(properties.images);
+            const imageHtml = getPopupImageHtml(images, properties.id);
+            const iconsHtml = getIconsHtml(properties.tags);
+            const links = String(properties.links) || '';
+            const mapLinksHtml = getMapLinksHtml(latitude, longitude);
+
+            const editPanel = document.getElementById('edit-panel');
+            const body = document.getElementById('edit-panel-body');
+            editPanel.style.display = 'flex';
+            
+            pendingImageUploads = [];
+
+            body.innerHTML = `
+                <form class="edit-form">
+                    ${isMovingPoint ? '<div class="move-instructions">Click on the map to set new location</div>' : ''}
+                    ${isDrawMode ? '<div class="draw-instructions">Draw mode active. Click on map to add points. Press Enter or click first point to complete.</div>' : ''}
+                    
+                    <select class="language-select" id="lang-select">
+                        <option value="en">English</option>
+                        <option value="es">Spanish</option>
+                        <option value="ru">Russian</option>
+                        <option value="uk">Ukrainian</option>
+                    </select>
+
+                    <div id="feature-id">
+                        <label for="feature-id-text">Feature ID:</label>
+                        <input type="text" id="feature-id-text" value="${properties.id}" readonly />
+                    </div>
+
+                    <!-- English fields -->
+                    <div id="en-fields">
+                        <label for="name_en">Name:</label>
+                        <input type="text" id="name_en" value="${properties.name_en || ''}" />
+                        
+                        <label for="location_en">Location:</label>
+                        <input type="text" id="location_en" value="${properties.location_en || ''}" />
+                        
+                        <label for="contents_en">Content:</label>
+                        <textarea id="contents_en">${properties.contents_en || ''}</textarea>
+                    </div>
+
+                    <!-- Spanish fields -->
+                    <div id="es-fields" style="display:none;">
+                        <label for="name_es">Name:</label>
+                        <input type="text" id="name_es" value="${properties.name_es || ''}" />
+                        
+                        <label for="location_es">Location:</label>
+                        <input type="text" id="location_es" value="${properties.location_es || ''}" />
+                        
+                        <label for="contents_es">Content:</label>
+                        <textarea id="contents_es">${properties.contents_es || ''}</textarea>
+                    </div>
+
+                    <!-- Russian fields -->
+                    <div id="ru-fields" style="display:none;">
+                        <label for="name_ru">Name:</label>
+                        <input type="text" id="name_ru" value="${properties.name_ru || ''}" />
+                        
+                        <label for="location_ru">Location:</label>
+                        <input type="text" id="location_ru" value="${properties.location_ru || ''}" />
+                        
+                        <label for="contents_ru">Content:</label>
+                        <textarea id="contents_ru">${properties.contents_ru || ''}</textarea>
+                    </div>
+
+                    <!-- Ukrainian fields -->
+                    <div id="uk-fields" style="display:none;">
+                        <label for="name_uk">Name:</label>
+                        <input type="text" id="name_uk" value="${properties.name_uk || ''}" />
+                        
+                        <label for="location_uk">Location:</label>
+                        <input type="text" id="location_uk" value="${properties.location_uk || ''}" />
+                        
+                        <label for="contents_uk">Content:</label>
+                        <textarea id="contents_uk">${properties.contents_uk || ''}</textarea>
+                    </div>
+
+                    <div id="additional-info">
+                        <label for="links-text">Links (HTML):</label>
+                        <textarea id="links-text" rows="3">${(properties.links || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}</textarea>
+                    </div>
+
+                    <div class="popup-icons">
+                        ${iconsHtml}
+                        <button type="button" id="edit-amenities-btn"
+                            style="margin-top:5px; background:#3498db; color:white; border:none; border-radius:4px;
+                                padding:6px 10px; cursor:pointer;">
+                            Edit Amenities
+                        </button>
+                    </div>
+
+                    ${imageHtml}
+                    
+                    <div id="upload-status"></div>
+                    
+                    ${getDrawnFeaturesHtml()}
+                    
+                    <button type="button" class="save-button">Save Changes</button>
+                </form>
+            `;
+
+            const langSelect = document.getElementById('lang-select');
+            langSelect.addEventListener('change', (e) => {
+                updateLanguageFields(e.target.value);
+            });
+
+            updateLanguageFields('en');
+
+            document.getElementById('edit-amenities-btn').addEventListener('click', () => {
+                openAmenitiesModal(properties.tags);
+            });
+
+            document.getElementById('close-panel-btn').onclick = () => {
+                editPanel.style.display = 'none';
+                
+                if (moveMarker) {
+                    moveMarker.remove();
+                    moveMarker = null;
+                }
+                isMovingPoint = false;
+                newCoordinates = null;
+                document.getElementById('move-point-btn').classList.remove('move-mode-active');
+            };
+
+            const saveButton = body.querySelector('.save-button');
+            saveButton.addEventListener('click', async () => {
+                const statusDiv = document.getElementById('upload-status');
+                
+                try {
+                    if (pendingImageUploads.length > 0) {
+                        statusDiv.className = 'upload-status uploading';
+                        statusDiv.textContent = `Uploading ${pendingImageUploads.length} image(s)...`;
+                        
+                        const uploadedUrls = await uploadImagesToImgBB(pendingImageUploads);
+                        
+                        if (uploadedUrls.length > 0) {
+                            statusDiv.className = 'upload-status success';
+                            statusDiv.textContent = `Successfully uploaded ${uploadedUrls.length} image(s)`;
+                        }
+                    }
+                    
+                    const updated = {};
+                    const languages = ['en', 'es', 'ru', 'uk'];
+
+                    languages.forEach(lang => {
+                        updated[`name_${lang}`] = document.getElementById(`name_${lang}`).value;
+                        updated[`location_${lang}`] = document.getElementById(`location_${lang}`).value;
+                        updated[`contents_${lang}`] = document.getElementById(`contents_${lang}`).value;
+                    });
+                    
+                    const linksTextarea = document.getElementById('links-text');
+                    if (linksTextarea) {
+                        const linksValue = linksTextarea.value;
+                        updated.links = linksValue;
+                    }
+
+                    if (pendingImageUploads.length > 0) {
+                        const existingImages = parseImages(feature.properties.images);
+                        const allImageUrls = [...existingImages, ...pendingImageUploads.map(f => f.url)].filter(Boolean);
+                        updated.images = allImageUrls.join(',');
+                        pendingImageUploads = [];
+                    }
+
+                    if (newCoordinates) {
+                        updated.geometry = {
+                            type: 'Point',
+                            coordinates: newCoordinates
+                        };
+                        updated.geopoint = {
+                            latitude: newCoordinates[1],
+                            longitude: newCoordinates[0]
+                        };
+                    }
+
+                    const tagCheckboxes = document.querySelectorAll('#amenities-list input[type="checkbox"]');
+                    if (tagCheckboxes.length > 0) {
+                        updated.tags = Array.from(tagCheckboxes)
+                            .filter(i => i.checked)
+                            .map(i => i.value);
+                    }
+
+                    const collection = 'poi';
+                    const id = feature.properties.id;
+
+                    const result = await updateFeature(collection, id, updated);
+
+                    if (result.success) {
+                        Object.assign(feature.properties, updated);
+                        
+                        if (newCoordinates) {
+                            feature.geometry.coordinates = newCoordinates;
+                            if (moveMarker) {
+                                moveMarker.remove();
+                                moveMarker = null;
+                            }
+                            isMovingPoint = false;
+                            newCoordinates = null;
+                            document.getElementById('move-point-btn').classList.remove('move-mode-active');
+                        }
+                        
+                        updatePOILanguage(map, poiData, currentLanguage);
+                        
+                        if (drawnFeatures.length > 0) {
+                            statusDiv.className = 'upload-status uploading';
+                            statusDiv.textContent = `Saving ${drawnFeatures.length} drawn feature(s)...`;
+                            
+                            const featureName = feature.properties.name_en;
+                            let successCount = 0;
+                            
+                            for (const drawnFeature of drawnFeatures) {
+                                const collection = getCollectionForGeometry(drawnFeature.geometry.type);
+                                const featureData = {
+                                    feature: featureName,
+                                    geometry: drawnFeature.geometry
+                                };
+                                
+                                const addResult = await addFeature(collection, featureData);
+                                if (addResult.success) {
+                                    successCount++;
+                                }
+                            }
+                            
+                            if (successCount > 0) {
+                                statusDiv.className = 'upload-status success';
+                                statusDiv.textContent = `Successfully saved ${successCount} drawn feature(s)`;
+                                
+                                draw.deleteAll();
+                                drawnFeatures = [];
+                                
+                                await loadAllData();
+                            }
+                        } else {
+                            if (!statusDiv.textContent.includes('uploaded')) {
+                                statusDiv.className = 'upload-status success';
+                                statusDiv.textContent = 'Feature updated successfully';
+                            }
+                        }
+                        
+                        setTimeout(() => {
+                            statusDiv.textContent = '';
+                            statusDiv.className = '';
+                        }, 3000);
+                    } else {
+                        statusDiv.className = 'upload-status error';
+                        statusDiv.textContent = 'Error updating feature: ' + result.error;
+                    }
+                } catch (error) {
+                    statusDiv.className = 'upload-status error';
+                    statusDiv.textContent = 'Error: ' + error.message;
+                }
+            });
+
+        }
+
+
+        async function uploadImagesToImgBB(files) {
+            const uploadedUrls = [];
+            
+            for (const fileData of files) {
+                try {
+                    const formData = new FormData();
+                    formData.append('image', fileData.file);
+                    
+                    if (IMGBB_ALBUM_ID) {
+                        formData.append('album', IMGBB_ALBUM_ID);
+                    }
+                    
+                    const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        uploadedUrls.push(data.data.url);
+                        fileData.url = data.data.url;
+                    } else {
+                        console.error('ImgBB upload failed:', data);
+                    }
+                } catch (error) {
+                    console.error('Error uploading to ImgBB:', error);
+                }
+            }
+            
+            return uploadedUrls;
+        }
+
+        document.getElementById('upload-images-btn').addEventListener('click', () => {
+            document.getElementById('image-upload-input').click();
+        });
+
+        document.getElementById('image-upload-input').addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            const statusDiv = document.getElementById('upload-status');
+            
+            if (files.length > 0) {
+                files.forEach(file => {
+                    pendingImageUploads.push({
+                        file: file,
+                        url: null,
+                        name: file.name
+                    });
+                });
+                
+                statusDiv.className = 'upload-status';
+                statusDiv.textContent = `${files.length} image(s) selected. Click "Save Changes" to upload.`;
+                statusDiv.style.background = '#e3f2fd';
+                statusDiv.style.color = '#1565c0';
+            }
+            
+            e.target.value = '';
+        });
+
+        document.getElementById('move-point-btn').addEventListener('click', () => {
+            if (!currentFeature) {
+                alert('Please select a feature first');
+                return;
+            }
+            
+            const moveBtn = document.getElementById('move-point-btn');
+            isMovingPoint = !isMovingPoint;
+            
+            if (isMovingPoint) {
+                moveBtn.classList.add('move-mode-active');
+                
+                if (moveMarker) {
+                    moveMarker.remove();
+                }
+                
+                const currentCoords = newCoordinates || currentFeature.geometry.coordinates;
+                moveMarker = new mapboxgl.Marker({
+                    draggable: true,
+                    color: '#f39c12'
+                })
+                .setLngLat(currentCoords)
+                .addTo(map);
+                
+                moveMarker.on('dragend', () => {
+                    const lngLat = moveMarker.getLngLat();
+                    newCoordinates = [lngLat.lng, lngLat.lat];
+                    console.log('New coordinates:', newCoordinates);
+                    
+                    createEditPopup(currentFeature);
+                });
+                
+                const mapClickHandler = (e) => {
+                    if (isMovingPoint) {
+                        newCoordinates = [e.lngLat.lng, e.lngLat.lat];
+                        moveMarker.setLngLat(newCoordinates);
+                        console.log('New coordinates:', newCoordinates);
+                        
+                        createEditPopup(currentFeature);
+                    }
+                };
+                
+                map.once('click', mapClickHandler);
+                
+                createEditPopup(currentFeature);
+            } else {
+                moveBtn.classList.remove('move-mode-active');
+                if (moveMarker) {
+                    moveMarker.remove();
+                    moveMarker = null;
+                }
+                newCoordinates = null;
+                
+                createEditPopup(currentFeature);
+            }
+        });
+
+
+        function updateLanguageFields(language) {
+            const allLanguages = ['en', 'es', 'ru', 'uk'];
+            allLanguages.forEach(lang => {
+                const fields = document.getElementById(`${lang}-fields`);
+                if (fields) {
+                    fields.style.display = language === lang ? 'block' : 'none';
+                }
+            });
+        }
+
+        loginButton.addEventListener('click', async () => {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            
+            const result = await loginUser(email, password);
+            if (result.success) {
+                authOverlay.style.display = 'none';
+                logoutButton.style.display = 'block';
+                errorMessage.textContent = '';
+                loadAllData();
+            } else {
+                errorMessage.textContent = result.error;
+            }
+        });
+
+        logoutButton.addEventListener('click', async () => {
+            const result = await logoutUser();
+            if (result.success) {
+                authOverlay.style.display = 'flex';
+                logoutButton.style.display = 'none';
+                emailInput.value = '';
+                passwordInput.value = '';
+                if (map) {
+                    map.remove();
+                    map = null;
+                }
+            }
+        });
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                authOverlay.style.display = 'none';
+                logoutButton.style.display = 'block';
+                if (!map) {
+                    loadAllData();
+                }
+            } else {
+                authOverlay.style.display = 'flex';
+                logoutButton.style.display = 'none';
+                if (map) {
+                    map.remove();
+                    map = null;
+                }
+            }
+        });
+
+
+        function openAmenitiesModal(currentTags = []) {
+            const modal = document.getElementById('amenities-modal');
+            const list = document.getElementById('amenities-list');
+            const amenities = [
+                'accessible', 'birding', 'restrooms', 'hiking', 
+                'paddling', 'paddlingno', 'parking', 'biking',
+                'nopets','boats'
+            ]; 
+
+            list.innerHTML = amenities.map(tag => `
+                <label style="display:block; margin-bottom:5px;">
+                    <input type="checkbox" value="${tag}" ${currentTags.includes(tag) ? 'checked' : ''}/> ${tag}
+                </label>
+            `).join('');
+
+            modal.style.display = 'flex';
+
+            document.getElementById('close-amenities-btn').onclick = () => {
+                const selected = Array.from(list.querySelectorAll('input:checked')).map(i => i.value);
+                console.log('Selected amenities:', selected);
+                modal.style.display = 'none';
+            };
+        }
+
+        function getCollectionForGeometry(geometryType) {
+            if (geometryType === 'Point') return 'points';
+            if (geometryType === 'LineString') return 'lines';
+            if (geometryType === 'Polygon') return 'polygons';
+            return 'points';
+        }
+
+        function getDrawnFeaturesHtml() {
+            if (drawnFeatures.length === 0) return '';
+            
+            return `
+                <div class="drawn-features-list">
+                    <strong>Drawn Features (${drawnFeatures.length}):</strong>
+                    ${drawnFeatures.map((f, i) => `
+                        <div class="drawn-feature-item">
+                            <span>${f.geometry.type} ${i + 1}</span>
+                            <button type="button" onclick="removeDrawnFeature(${i})">Delete</button>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function updateDrawnFeaturesList() {
+            if (currentFeature) {
+                createEditPopup(currentFeature);
+            }
+        }
+
+        window.removeDrawnFeature = function(index) {
+            const feature = drawnFeatures[index];
+            if (feature && feature.id) {
+                draw.delete(feature.id);
+            }
+            drawnFeatures.splice(index, 1);
+            updateDrawnFeaturesList();
+        };
+
+        document.getElementById('add-feature-dropdown').addEventListener('change', (e) => {
+            const value = e.target.value;
+            
+            if (!currentFeature) {
+                alert('Please select a POI feature first');
+                e.target.selectedIndex = 0;
+                return;
+            }
+            
+            if (isMovingPoint) {
+                isMovingPoint = false;
+                document.getElementById('move-point-btn').classList.remove('move-mode-active');
+                if (moveMarker) {
+                    moveMarker.remove();
+                    moveMarker = null;
+                }
+            }
+            
+            isDrawMode = true;
+            
+            if (value === 'point') {
+                draw.changeMode('draw_point');
+            } else if (value === 'line') {
+                draw.changeMode('draw_line_string');
+            } else if (value === 'polygon') {
+                draw.changeMode('draw_polygon');
+            }
+            
+            e.target.selectedIndex = 0;
+            
+            createEditPopup(currentFeature);
+        });
+
+    </script>
+</body>
+</html>
