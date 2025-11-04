@@ -390,7 +390,7 @@ function populateSidebar(data) {
         const name = properties[`name_${currentLanguage}`] || '';
         const content = properties[`contents_${currentLanguage}`] || '';
         const images = parseImages(properties.images);
-        const pointId = properties.id.split("_")[1] || '';
+        const pointId = properties.OBJECTID || '';
         
         const imageElement = getSidebarImageElement(images, pointId, name);
         
@@ -428,8 +428,6 @@ function populateSidebar(data) {
         });
         
         pointsList.appendChild(pointItem);
-
-        console.log(`Added sidebar item for point ID: ${pointId}, Name: ${name}`);
     });
 }
 
@@ -512,6 +510,8 @@ function createPopupFromFeature(feature, lang) {
         currentPopup.remove();
         currentPopup = null;
     }
+
+    console.log('Creating popup for feature', feature);
 
     const coordinates = feature.geometry.coordinates.slice();
     const [longitude, latitude] = coordinates;

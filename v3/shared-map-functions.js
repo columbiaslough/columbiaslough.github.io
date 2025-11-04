@@ -132,6 +132,8 @@ export function addPointsLayer(map, data, iconNames = ['restrooms', 'parking', '
         return Promise.resolve();
     }
 
+    console.log('Points data:', data);
+
     const loadIcon = (iconName) => {
         return new Promise((resolve, reject) => {
             map.loadImage(`../resources/icons/${iconName}.png`, (error, image) => {
@@ -160,7 +162,7 @@ export function addPointsLayer(map, data, iconNames = ['restrooms', 'parking', '
                 type: 'symbol',
                 source: 'points',
                 layout: {
-                    'icon-image': ['get', 'type'],
+                    'icon-image': ['get', 'icon_type'],
                     'icon-size': 0.09,
                     'visibility': 'none'
                 },
@@ -247,6 +249,7 @@ export function filterAndShowLayer(map, sourceId, layerId, data, property, filte
             };
             source.setData(filteredData);
             map.setLayoutProperty(layerId, 'visibility', 'visible');
+            console.log(`Showing ${layerId} with ${matchingFeatures.length} features`);
         } else {
             map.setLayoutProperty(layerId, 'visibility', 'none');
         }

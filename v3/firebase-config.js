@@ -3,13 +3,13 @@ import { getFirestore, collection, getDocs, doc, updateDoc, addDoc } from "https
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyB_96ExmyXRlV2RMRv2_-7agrmR3lBaywA",
-    authDomain: "columbia-52ee8.firebaseapp.com",
-    projectId: "columbia-52ee8",
-    storageBucket: "columbia-52ee8.firebasestorage.app",
-    messagingSenderId: "614466267751",
-    appId: "1:614466267751:web:9ef5552ec1186ea57e02c2",
-    measurementId: "G-H0N5XRMZJS"
+  apiKey: "AIzaSyDoZnmglAwumuQnj-O3JtALBxYlFO-mSuw",
+  authDomain: "slough-map-76a27.firebaseapp.com",
+  projectId: "slough-map-76a27",
+  storageBucket: "slough-map-76a27.firebasestorage.app",
+  messagingSenderId: "742615105797",
+  appId: "1:742615105797:web:adb513c39029aea935776c",
+  measurementId: "G-HXYJHXBFGS"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -86,7 +86,7 @@ export async function fetchFeatures(collectionName) {
             properties: {
                 ...data,
                 id: doc.id,
-                labelId: doc.id.split('_')[1] || doc.objectId,
+                labelId: data.OBJECTID || '',
                 images: images.join(','),
                 tags: tags.join(',')
             },
