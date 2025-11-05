@@ -136,7 +136,7 @@ export function addPointsLayer(map, data, iconNames = ['restrooms', 'parking', '
 
     const loadIcon = (iconName) => {
         return new Promise((resolve, reject) => {
-            map.loadImage(`../resources/icons/${iconName}.png`, (error, image) => {
+            map.loadImage(`resources/icons/${iconName}.png`, (error, image) => {
                 if (error) {
                     console.error(`Error loading icon ${iconName}:`, error);
                     reject(error);
@@ -283,7 +283,7 @@ export function getIconsHtml(tagsInput) {
     
     return tags.map(tag => `
         <div class="icon-container" title="${tag}">
-            <img src="../resources/icons/${tag}.svg" alt="${tag}" class="icon-image">
+            <img src="resources/icons/${tag}.svg" alt="${tag}" class="icon-image">
         </div>
     `).join('');
 }

@@ -1,10 +1,63 @@
-let pointsData, linesData, polygonsData;
+import { db, fetchFeatures } from './firebase-config.js';
+import {
+    initializeMapBase,
+    addPolygonsLayer,
+    addLinesLayer,
+    addPointsLayer,
+    addPOILayer,
+    getImageUrl,
+    parseImages,
+    hasRealImages,
+    filterAndShowLayer,
+    updatePOILanguage,
+    getPopupImageHtml,
+    getIconsHtml,
+    getMapLinksHtml
+} from './shared-map-functions.js';
+
+let pointsData, linesData, polygonsData, poiData;
 let currentLanguage = 'en';
 let currentImageIndex = 0;
+let labelsVisible = false;
+let currentPopup = null;
+let subpointsData;
+let map;
+
+async function loadAllData() {
+    try {
+        const [points, lines, polygons, poi] = await Promise.all([
+            fetchFeatures('points'),
+            fetchFeatures('lines'),
+            fetchFeatures('polygons'),
+            fetchFeatures('poi')
+        ]);
+        
+        pointsData = points;
+        linesData = lines;
+        polygonsData = polygons;
+        poiData = poi;
+
+        console.log('Data loaded:', { 
+            points: pointsData.features.length, 
+            lines: linesData.features.length, 
+            polygons: polygonsData.features.length, 
+            poi: poiData.features.length 
+        });
+
+        initializeMap();
+    } catch (error) {
+        console.error('Error loading data:', error);
+    }
+}
 
 document.getElementById("settings-button").addEventListener("click", function(event) {
     event.stopPropagation();
     const controlPanel = document.getElementById('control-panel');
+    const sidebar = document.getElementById('sidebar');
+
+    if (sidebar.classList.contains('open')) {
+        sidebar.classList.remove('open');
+    }
     controlPanel.classList.toggle('open');
 });
 
@@ -13,24 +66,40 @@ document.getElementById("close-button").addEventListener("click", function() {
     controlPanel.classList.remove('open');
 });
 
-document.getElementById("pdf-button").addEventListener("click", function(event) {
+document.getElementById("labels-button").addEventListener("click", function() {
+    labelsVisible = !labelsVisible;
+    if (map.getLayer('poi-point-labels')) {
+        map.setLayoutProperty('poi-point-labels', 'visibility', labelsVisible ? 'visible' : 'none');
+    }
+    this.style.backgroundColor = labelsVisible ? '#1592b5' : '#aaadca';
+});
+
+document.getElementById("sidebar-button").addEventListener("click", function(event) {
     event.stopPropagation();
-    document.getElementById('pdf-modal').style.display = "flex";
-});
-
-document.getElementById("close-pdf").addEventListener("click", function() {
-    document.getElementById('pdf-modal').style.display = "none";
-});
-
-document.addEventListener("click", function(event) {
-    const pdfModal = document.getElementById('pdf-modal');
+    const sidebar = document.getElementById('sidebar');
     const controlPanel = document.getElementById('control-panel');
 
-    if (pdfModal.style.display === "flex" && !pdfModal.contains(event.target) && event.target.id !== "pdf-button") {
-        pdfModal.style.display = "none";
+    if (controlPanel.classList.contains('open')) {
+        controlPanel.classList.remove('open');
     }
+    sidebar.classList.toggle('open');
+});
+
+document.getElementById("close-sidebar").addEventListener("click", function() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.remove('open');
+});
+
+document.addEventListener('DOMContentLoaded', loadAllData);
+
+document.addEventListener("click", function(event) {
+    const controlPanel = document.getElementById('control-panel');
+    const sidebar = document.getElementById('sidebar');
     if (controlPanel.classList.contains('open') && !controlPanel.contains(event.target) && event.target.id !== "settings-button") {
         controlPanel.classList.remove('open');
+    }
+    if (sidebar.classList.contains('open') && !sidebar.contains(event.target) && event.target.id !== "sidebar-button") {
+        sidebar.classList.remove('open');
     }
 });
 
@@ -62,6 +131,9 @@ document.querySelectorAll('#basemap-selector input[name="basemap"]').forEach(rad
         if (map.getSource('poi')) {
             map.removeLayer('poi-circles');
             map.removeLayer('poi-labels');
+            if (map.getLayer('poi-point-labels')) {
+                map.removeLayer('poi-point-labels');
+            }
             map.removeSource('poi');
         }
 
@@ -83,8 +155,8 @@ document.querySelectorAll('#basemap-selector input[name="basemap"]').forEach(rad
         map.setStyle(style);
 
         map.on('style.load', function() {
-            if (poi) {
-                addPOI(poi);
+            if (poiData) {
+                addPOILayer(map, poiData, currentLanguage);
             }
             if (polygonsData) {
                 loadAdditionalFeatures();
@@ -109,6 +181,7 @@ document.querySelectorAll('#filter-selector input[type="checkbox"]').forEach(che
         if (selectedTags.length === 0) {
             map.setFilter('poi-circles', null);
             map.setFilter('poi-labels', null);
+            map.setFilter('poi-point-labels', null);
             return;
         }
 
@@ -119,419 +192,284 @@ document.querySelectorAll('#filter-selector input[type="checkbox"]').forEach(che
 
         map.setFilter('poi-circles', filter);
         map.setFilter('poi-labels', filter);
+        map.setFilter('poi-point-labels', filter);
     }); 
 });
 
 function initializeMap() {
-    mapboxgl.accessToken = 'pk.eyJ1IjoiY29sdW1iaWFzbG91Z2giLCJhIjoiY201MWFrbTBmMHN1aTJwcHd1dHloMGs4YyJ9.kQj7ux3XSeQiOBwxzM5B9g';
-    map = new mapboxgl.Map({
-        container: 'map',
-        style: 'mapbox://styles/mapbox/satellite-streets-v11',
-        bounds: [[-122.8, 45.53], [-122.45, 45.65]]
-    });
-
-    map.setBearing(16);
+    map = initializeMapBase(mapboxgl);
 
     map.on('load', function() {
-
-        fetch('resources/poi.geojson')
-            .then(response => response.json())
-            .then(data => {
-                poi = data;
-                addPOI(poi);
-            })
-            .catch(error => console.error('Error loading poi data:', error));
-            
-        loadAdditionalFeatures();
-        });
-}
-
-function prepProperties(data) {
-    data.features.forEach(feature => {
-        if (!feature.properties) {
-            feature.properties = {};
+        if (poiData) {
+            addPOILayer(map, poiData, currentLanguage);
+            loadAdditionalFeatures();
+            setupPOIClickHandlers();
         }
-        feature.properties.id = feature.id;
     });
-    return data;
+
+    populateSidebar(poiData);
 }
 
 function loadAdditionalFeatures() {
-    Promise.all([
-        fetch('resources/polygons.geojson').then(response => response.json()),
-        fetch('resources/lines.geojson').then(response => response.json()),
-        fetch('resources/points.geojson').then(response => response.json()),
-        fetch('resources/subpoints.geojson').then(response => response.json())
-    ])
-    .then(([polygons, lines, points, subpoints]) => {
-        polygonsData = polygons;
-        linesData = lines;
-        pointsData = points;
-        subpointsData = subpoints;
-
-        map.addSource('polygons', {
-            type: 'geojson',
-            data: polygonsData
-        });
-        map.addLayer({
-            id: 'polygons-layer',
-            type: 'fill',
-            source: 'polygons',
-            paint: {
-                'fill-color': '#33ff99',
-                'fill-opacity': 0.3,
-                'fill-outline-color': '#d7f531'
-            },
-            layout: {
-                'visibility': 'none'
-            },
-            minzoom: 13
-        });
-
-        map.addSource('lines', {
-            type: 'geojson',
-            data: linesData
-        });
-        map.addLayer({
-            id: 'lines-layer',
-            type: 'line',
-            source: 'lines',
-            paint: {
-                'line-color': '#ff5773',
-                'line-width': 2
-            },
-            layout: {
-                'visibility': 'none'
-            },
-            minzoom: 13
-        });
-
-        map.loadImage('resources/icons/square.png', (error, image) => {
-            if (error) throw error;
-            map.addImage('square', image)
-        });
-
-        map.addSource('subpoints', {
-            type: 'geojson',
-            data: subpoints
-        });
-    
-        map.addLayer({
-            id: 'subpoints',
-            type: 'symbol',
-            source: 'subpoints',
-            layout: {
-                'icon-image': 'square',
-                'icon-rotate': 45,
-                'icon-size': 0.1
-            },
-            minzoom: 13
-        });
-
-        map.addLayer({
-            id: 'subponts-labels',
-            type: 'symbol',
-            source: 'subpoints',
-            layout: {
-                'text-field': ['get', 'title_en'],
-                'text-size': 9,
-                'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-                'text-anchor': 'right',
-                'text-offset': [1.5, -1.5],
-                'text-allow-overlap': true,
-                'text-ignore-placement': true,
-                'symbol-placement': 'point'
-            },
-            paint: {
-                'text-color': 'black',
-                'text-halo-color': 'white',
-                'text-halo-width': 0.6
-            },
-            minzoom: 13
-        });
-                
-        const icons = ['restrooms', 'parking'];
-        return Promise.all(
-            icons.map(icon => 
-                new Promise((resolve, reject) => {
-                    map.loadImage(`resources/icons/${icon}.png`, (error, image) => {
-                        if (error) reject(error);
-                        if (!map.hasImage(icon)) {
-                            map.addImage(icon, image);
-                        }
-                        resolve();
-                    });
-                })
-            )
-        ).then(() => {
-            map.addSource('points', {
-                type: 'geojson',
-                data: pointsData
-            });
-            map.addLayer({
-                id: 'points-layer',
-                type: 'symbol',
-                source: 'points',
-                layout: {
-                    'icon-image': ['get', 'type'],
-                    'icon-size': 0.09,
-                    'visibility': 'none'
-                },
-                minzoom: 13
-            });
-        });
-    })
-    .catch(error => console.error('Error loading features:', error));
-}
-
-function addPOI(data) {
-    const processedData = prepProperties(data);
-    
-    map.addSource('poi', {
-        type: 'geojson',
-        data: processedData
-    });
-
-    map.addLayer({
-        id: 'poi-circles',
-        type: 'circle',
-        source: 'poi',
-        paint: {
-            'circle-radius': 9,
-            'circle-color': '#dc9c3c',
-            'circle-opacity': 1
-        }
-    });
-
-    map.addLayer({
-        id: 'poi-labels',
-        type: 'symbol',
-        source: 'poi',
-        layout: {
-            'text-field': ['get', 'id'],
-            'text-size': 10,
-            'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-            'text-anchor': 'center',
-            'text-allow-overlap': true,
-            'text-ignore-placement': true,
-            'symbol-placement': 'point'
-        },
-        paint: {
-            'text-color': 'white',
-            'text-halo-color': 'black',
-            'text-halo-width': 0.6
-        }
-    });
-
-    function createPopup(e, lang) {
-        const coordinates = e.features[0].geometry.coordinates.slice();
-        const [longitude, latitude] = coordinates;
-        const properties = e.features[0].properties;
-
-        const name = properties[`name_${lang}`] || '';
-        const location = properties[`location_${lang}`] || '';
-        const content = properties[`contents_${lang}`] || '';
-
-        const images = properties.images ? properties.images.split(',') : [];
-        const isDefaultImage = images.length === 0 || images[0] === "image0";
-        const imageHtml = images.length > 0 
-        ? `<img id="current-image" src="resources/popup-images/${images[0]}.jpg" alt="picture" class="popup-image" />` 
-        : `<img id="current-image" src="resources/popup-images/image0.png" alt="picture" class="popup-image" />`;
-
-        const tags = (properties.tags || '').split(',').map(tag => tag.trim());
-        const iconsHtml = tags.map(tag => `
-            <div class="icon-container" title="${tag}">
-                <img src="resources/icons/${tag}.svg" alt="${tag}" class="icon-image">
-            </div>
-        `).join('');      
-
-        const popupContent = `
-            <div class="popup-content">
-                <div class="popup-top">
-                    <div class="popup-title">
-                        <strong>${name}</strong><br>
-                        <em>${location}</em><br>
-                    </div>
-                    <div class="popup-icons">
-                        ${iconsHtml}
-                    </div>
-                </div>
-                <div class="popup-middle">
-                    ${content}
-                </div>  
-                <div class="popup-bottom">
-                    <div class="links-container">
-                        <p><b>Additional information:</b></p>
-                        <p id="additional-links"></p>
-                        <div class="map-icons">
-                            <div class="map-icon-container" id="google-link" title="Open in Google Maps">
-                                <a href="https://maps.google.com/?q=${latitude},${longitude}" target="_blank"><img src="https://www.vectorlogo.zone/logos/google_maps/google_maps-icon.svg" class="icon-image"></a>
-                            </div>
-                            <div class="map-icon-container" id="apple-link" title="Open in Apple Maps">
-                                <a href="http://maps.apple.com/?q=${latitude},${longitude}" target="_blank"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQk4kU3uCXeJ2uIbJL0bZQbm1KNRjnI7vW3Ww&s" class="icon-image"></a>
-                            </div>
-                            <div class="map-icon-container" id="bing-link" title="Open in Bing Maps">
-                                <a href="https://bing.com/maps/default.aspx?cp=${latitude}~${longitude}&lvl=15" target="_blank"><img src="https://download.logo.wine/logo/Bing_Maps_Platform/Bing_Maps_Platform-Logo.wine.png" class="icon-image"></a>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="image-carousel">
-                        <div class="image-wrapper">
-                            ${imageHtml}
-                        </div>
-                        <button class="carousel-button left-button" id="previous-image-button" style="display:${isDefaultImage ? 'none' : 'block'};">&#9664;</button>
-                        <button class="carousel-button right-button" id="next-image-button" style="display:${isDefaultImage ? 'none' : 'block'};">&#9654;</button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        const popup = new mapboxgl.Popup({ offset: -5})
-            .setLngLat(coordinates)
-            .setHTML(popupContent)
-            .addTo(map);
-
-        popup.getElement().querySelector('#previous-image-button')?.addEventListener('click', () => {
-            showPreviousImage(images);
-        });
-    
-        popup.getElement().querySelector('#next-image-button')?.addEventListener('click', () => {
-            showNextImage(images);
-        });
-
-        const currentImage = popup.getElement().querySelector('#current-image');
-        if (currentImage && !isDefaultImage) {
-            currentImage.addEventListener('click', () => openImageModal(images));
-        }
-
-        const links = properties.links || '';
-        const additionalLinksElement = document.getElementById('additional-links');
-        const linksContainer = popup.getElement().querySelector('.links-container');
-        const mapIconsContainer = popup.getElement().querySelector('.map-icons');
-        const imageCarouselContainer = popup.getElement().querySelector('.image-carousel');
-        if (links) {
-            additionalLinksElement.innerHTML = links;
-            imageCarouselContainer.style.flex = '3';
-            linksContainer.style.flex = '2';
-            mapIconsContainer.style.display = 'flex';
-        } else {
-            additionalLinksElement.style.display = "none";
-            imageCarouselContainer.style.flex = '6';
-            linksContainer.style.flex = '1';
-            mapIconsContainer.style.display = 'block';
-        }
+    if (!map.isStyleLoaded()) {
+        console.log('Style not loaded, waiting...');
+        setTimeout(loadAdditionalFeatures, 100);
+        return;
     }
 
+    console.log('Loading additional features...');
+
+    if (polygonsData && linesData && pointsData) {
+        ['polygons', 'lines', 'points', 'subpoints'].forEach(sourceId => {
+            try {
+                const layerId = `${sourceId}-layer`;
+                if (map.getLayer(layerId)) {
+                    map.removeLayer(layerId);
+                }
+                if (sourceId === 'subpoints' && map.getLayer('subpoints-labels')) {
+                    map.removeLayer('subpoints-labels');
+                }
+                if (map.getSource(sourceId)) {
+                    map.removeSource(sourceId);
+                }
+            } catch (error) {
+                console.log(`Error removing ${sourceId}:`, error);
+            }
+        });
+
+        addPolygonsLayer(map, polygonsData);
+        addLinesLayer(map, linesData);
+
+        const loadIcon = (iconName) => {
+            return new Promise((resolve, reject) => {
+                map.loadImage(`resources/icons/${iconName}.png`, (error, image) => {
+                    if (error) {
+                        console.error(`Error loading icon ${iconName}:`, error);
+                        reject(error);
+                        return;
+                    }
+                    if (!map.hasImage(iconName)) {
+                        map.addImage(iconName, image);
+                    }
+                    resolve();
+                });
+            });
+        };
+
+        Promise.all([
+            loadIcon('square'),
+            loadIcon('restrooms'),
+            loadIcon('parking'),
+        ]).then(() => {
+            if (subpointsData) {
+                map.addSource('subpoints', {
+                    type: 'geojson',
+                    data: subpointsData
+                });
+    
+                map.addLayer({
+                    id: 'subpoints-layer',
+                    type: 'symbol',
+                    source: 'subpoints',
+                    layout: {
+                        'icon-image': 'square',
+                        'icon-rotate': 45,
+                        'icon-size': 0.1
+                    },
+                    minzoom: 13
+                });
+
+                map.addLayer({
+                    id: 'subpoints-labels',
+                    type: 'symbol',
+                    source: 'subpoints',
+                    layout: {
+                        'text-field': ['get', 'title_en'],
+                        'text-size': 9,
+                        'text-font': ['Roboto Bold', 'Open Sans Bold', 'Arial Unicode MS Bold'],
+                        'text-anchor': 'right',
+                        'text-offset': [1.5, -1.5],
+                        'text-allow-overlap': true,
+                        'text-ignore-placement': true,
+                        'symbol-placement': 'point'
+                    },
+                    paint: {
+                        'text-color': 'black',
+                        'text-halo-color': 'white',
+                        'text-halo-width': 0.6
+                    },
+                    minzoom: 13
+                });
+
+                map.on('click', 'subpoints-layer', (e) => {
+                    const coordinates = e.features[0].geometry.coordinates.slice();
+                    createSubPopup(e, currentLanguage);
+
+                    map.flyTo({
+                        center: coordinates,
+                        zoom: 15,
+                        speed: 1,
+                        curve: 1
+                    });
+                });
+            }
+                
+            return addPointsLayer(map, pointsData);
+        }).catch(error => console.error('Error loading icons:', error));
+    }
+}
+
+function setupPOIClickHandlers() {
     map.on('click', 'poi-circles', (e) => {
         const clickedName = e.features[0].properties['name_en'];
-        createPopup(e, currentLanguage);
+        createPopupFromFeature(e.features[0], currentLanguage);
 
         const coordinates = e.features[0].geometry.coordinates.slice();
         const zoomLevel = e.features[0].properties['zoom'];
-        const [longitude, latitude] = coordinates;
-        const offsetLatitude = latitude - (0.06/zoomLevel);
-        const offsetLongitude = longitude - (0.015/zoomLevel);
 
         map.flyTo({
-            center: [offsetLongitude, offsetLatitude],
+            center: coordinates,
             zoom: zoomLevel,
             speed: 1,
             curve: 1
         });
 
-        function filterAndShowLayer(sourceId, layerId, data, property) {
-            const matchingFeatures = data.features.filter(
-                feature => feature.properties[property] === clickedName
-            );
-
-            if (matchingFeatures.length > 0) {
-                const filteredData = {
-                    type: 'FeatureCollection',
-                    features: matchingFeatures
-                };
-                map.getSource(sourceId).setData(filteredData);
-                map.setLayoutProperty(layerId, 'visibility', 'visible');
-            } else {
-                map.setLayoutProperty(layerId, 'visibility', 'none');
-            }
-        }
-
-        if (polygonsData) filterAndShowLayer('polygons', 'polygons-layer', polygonsData, 'feature');
-        if (linesData) filterAndShowLayer('lines', 'lines-layer', linesData, 'feature');
-        if (pointsData) filterAndShowLayer('points', 'points-layer', pointsData, 'feature');
+        if (polygonsData) filterAndShowLayer(map, 'polygons', 'polygons-layer', polygonsData, 'feature', clickedName);
+        if (linesData) filterAndShowLayer(map, 'lines', 'lines-layer', linesData, 'feature', clickedName);
+        if (pointsData) filterAndShowLayer(map, 'points', 'points-layer', pointsData, 'feature', clickedName);
     });
+}
 
-    map.on('click', 'subpoints', (e) => {
-        const coordinates = e.features[0].geometry.coordinates.slice();
-        const properties = e.features[0].properties;
-        createSubPopup(e, currentLanguage);
+function createSubPopup(e, lang) {
+    const coordinates = e.features[0].geometry.coordinates.slice();
+    const properties = e.features[0].properties;
 
-        map.flyTo({
-            center: coordinates,
-            zoom: 15,
-            speed: 1,
-            curve: 1
-        });
-    });
+    const subName = properties[`title_${lang}`] || '';
+    const subLocation = properties[`directions_${lang}`] || '';
+    const subContent = properties[`content_${lang}`] || '';
 
-    function createSubPopup(e, lang) {
-        const coordinates = e.features[0].geometry.coordinates.slice();
-        const properties = e.features[0].properties;
-
-        const subName = properties[`title_${lang}`] || '';
-        const subLocation = properties[`directions_${lang}`] || '';
-        const subContent = properties[`content_${lang}`] || '';
-
-        const subPopupContent = `
-            <div class="popup-content">
-                <div class="popup-top">
-                    <div class="popup-title">
-                        <strong>${subName}</strong><br>
-                        <em>${subLocation}</em><br>
-                    </div>
+    const subPopupContent = `
+        <div class="popup-content">
+            <div class="popup-top">
+                <div class="popup-title">
+                    <strong>${subName}</strong><br>
+                    <em>${subLocation}</em><br>
                 </div>
-                <div class="popup-middle">
-                    ${subContent}
-                </div>        
+            </div>
+            <div class="popup-middle">
+                ${subContent}
+            </div>        
+        </div>
+    `;
+
+    const popup = new mapboxgl.Popup({ offset: -5})
+        .setLngLat(coordinates)
+        .setHTML(subPopupContent)
+        .addTo(map);
+}
+
+function getSidebarImageElement(images, pointId, name) {
+    const realImages = hasRealImages(images);
+    if (realImages) {
+        return `
+            <div class="sidebar-image-container">
+                <img src="${getImageUrl(images[0])}" alt="${name}" class="point-item-image">
+                <span class="sidebar-number-badge">${pointId}</span>
+            </div>`;
+    } else {
+        return `<div class="point-number-circle">${pointId}</div>`;
+    }
+}
+
+function populateSidebar(data) {
+    const pointsList = document.getElementById('points-list');
+    pointsList.innerHTML = '';
+
+    const sortedFeatures = data.features.slice().sort((a, b) => {
+        const idA = a.properties.OBJECTID || 0;
+        const idB = b.properties.OBJECTID || 0;
+        return idA - idB;
+    });
+    
+    sortedFeatures.forEach(feature => {
+        const properties = feature.properties;
+        const name = properties[`name_${currentLanguage}`] || '';
+        const content = properties[`contents_${currentLanguage}`] || '';
+        const images = parseImages(properties.images);
+        const pointId = properties.OBJECTID || '';
+        
+        const imageElement = getSidebarImageElement(images, pointId, name);
+        
+        const truncatedContent = content.length > 100 ? content.substring(0, 100) + '...' : content;
+        
+        const pointItem = document.createElement('div');
+        pointItem.className = 'point-item';
+        pointItem.innerHTML = `
+            ${imageElement}
+            <div class="point-item-content">
+                <div class="point-item-title">${name}</div>
+                <div class="point-item-description">${truncatedContent}</div>
             </div>
         `;
-
-        const popup = new mapboxgl.Popup({ offset: -5})
-            .setLngLat(coordinates)
-            .setHTML(subPopupContent)
-            .addTo(map);
-    }
+        
+        pointItem.addEventListener('click', () => {
+            const coordinates = feature.geometry.coordinates;
+            const zoomLevel = properties.zoom || 14;
+            
+            document.getElementById('sidebar').classList.remove('open');
+            
+            map.flyTo({
+                center: coordinates,
+                zoom: zoomLevel,
+                speed: 1,
+                curve: 1
+            });
+            
+            const existingPopups = document.querySelectorAll('.mapboxgl-popup');
+            existingPopups.forEach(popup => popup.remove());
+            
+            setTimeout(() => {
+                createPopupFromFeature(feature, currentLanguage);
+            }, 400);
+        });
+        
+        pointsList.appendChild(pointItem);
+    });
 }
 
 document.querySelectorAll('#language-selector input[name="language"]').forEach(radio => {
     radio.addEventListener('change', (e) => {
-        const pdfIframe = document.getElementById("pdf-iframe");
-        const fullscreenButton = document.getElementById("full-screen-link");
+        const pdfLink = document.getElementById("pdf-link");
         
         currentLanguage = e.target.value;
         console.log(`Language set to: ${currentLanguage}`);
-        pdfIframe.src = `resources/NatureInTheCity_FINAL_${currentLanguage}.pdf`;
-        fullscreenButton.href = `resources/NatureInTheCity_FINAL_${currentLanguage}.pdf`;
+        pdfLink.href = `resources/NatureInTheCity_FINAL_${currentLanguage}.pdf`;
+        
+        updatePOILanguage(map, currentLanguage);
+        
+        if (poiData) {
+            populateSidebar(poiData);
+        }
     });
 }); 
 
 function showPreviousImage(images) {
     if (!images.length) return;
     currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
-    document.getElementById('current-image').src = `resources/popup-images/${images[currentImageIndex]}.jpg`;
+    document.getElementById('current-image').src = getImageUrl(images[currentImageIndex]);
 }
 
 function showNextImage(images) {
     if (!images.length) return;
     currentImageIndex = (currentImageIndex + 1) % images.length;
-    document.getElementById('current-image').src = `resources/popup-images/${images[currentImageIndex]}.jpg`;
+    document.getElementById('current-image').src = getImageUrl(images[currentImageIndex]);
 }
 
 function openImageModal(images) {
     const modalHtml = `
         <div id="image-modal" class="modal-overlay">
             <div class="modal-content">
-                <img id="modal-image" src="resources/popup-images/${images[currentImageIndex]}.jpg" alt="Detailed view">
+                <img id="modal-image" src="${getImageUrl(images[currentImageIndex])}" alt="Detailed view">
                 <button class="carousel-button left-button" id="modal-previous-button">&#9664;</button>
                 <button class="carousel-button right-button" id="modal-next-button">&#9654;</button>
             </div>
@@ -553,22 +491,109 @@ function openImageModal(images) {
     document.getElementById('modal-previous-button').addEventListener('click', (e) => {
         e.stopPropagation(); 
         showPreviousImage(images);
-        document.getElementById('modal-image').src = `resources/popup-images/${images[currentImageIndex]}.jpg`;
+        document.getElementById('modal-image').src = getImageUrl(images[currentImageIndex]);
     });
 
     document.getElementById('modal-next-button').addEventListener('click', (e) => {
         e.stopPropagation(); 
         showNextImage(images);
-        document.getElementById('modal-image').src = `resources/popup-images/${images[currentImageIndex]}.jpg`;
+        document.getElementById('modal-image').src = getImageUrl(images[currentImageIndex]);
     });
 }
 
-
 window.onload = function() {
-    initializeMap();
-    map.addControl(new mapboxgl.NavigationControl());
+    if (map) {
+        map.addControl(new mapboxgl.NavigationControl());
+    }
 }
 
 document.getElementById("home-button").addEventListener("click", function() {
     map.fitBounds([[-122.9, 45.53], [-122.3, 45.65]], {bearing: 16});
 });
+
+function createPopupFromFeature(feature, lang) {
+    if (currentPopup) {
+        currentPopup.remove();
+        currentPopup = null;
+    }
+
+    console.log('Creating popup for feature', feature);
+
+    const coordinates = feature.geometry.coordinates.slice();
+    const [longitude, latitude] = coordinates;
+    const properties = feature.properties;
+
+    const name = properties[`name_${lang}`] || '';
+    const location = properties[`location_${lang}`] || '';
+    const content = properties[`contents_${lang}`] || '';
+    const pointId = properties.id || '';
+
+    const images = parseImages(properties.images);
+    const realImages = hasRealImages(images);
+
+    const imageHtml = getPopupImageHtml(images, pointId);
+    const iconsHtml = getIconsHtml(properties.tags);
+    const links = properties.links || '';
+    const mapLinksHtml = getMapLinksHtml(latitude, longitude);
+
+    const popupContent = `
+        <div class="popup-content">
+            <div class="popup-top">
+                <div class="popup-title">
+                    <strong>${name}</strong>
+                    <em>${location}</em>
+                </div>
+            </div>
+            <div class="popup-icons">
+                ${iconsHtml}
+            </div>
+            <div class="popup-middle">
+                ${content}
+            </div>
+            <div class="links-container">
+                <p><b>Additional information:</b></p>
+                <p class="additional-links">${links}</p>
+                ${mapLinksHtml}
+            </div>
+            <div class="image-carousel">
+                <div class="image-wrapper">
+                    ${imageHtml}
+                </div>
+                <button class="carousel-button left-button prev-image" style="display:${realImages && images.length > 1 ? 'block' : 'none'};">&#9664;</button>
+                <button class="carousel-button right-button next-image" style="display:${realImages && images.length > 1 ? 'block' : 'none'};">&#9654;</button>
+            </div>
+        </div>`;
+
+    const popup = new mapboxgl.Popup({
+        offset: 10,
+        anchor: 'bottom-right',
+        closeOnClick: false
+    })
+        .setLngLat(coordinates)
+        .setHTML(popupContent)
+        .addTo(map);
+
+    const root = popup.getElement();
+    
+    if (realImages) {
+        root.querySelector('.prev-image')?.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            showPreviousImage(images);
+        });
+        root.querySelector('.next-image')?.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            showNextImage(images);
+        });
+    }
+
+    const currentImage = root.querySelector('#current-image');
+    if (currentImage && realImages) {
+        currentImage.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            openImageModal(images);
+        });
+    }
+
+    currentPopup = popup;
+    return popup;
+}
