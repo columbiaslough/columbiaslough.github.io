@@ -1,7 +1,8 @@
 export const MAP_CONFIG = {
     accessToken: 'pk.eyJ1IjoiY29sdW1iaWFzbG91Z2giLCJhIjoiY201MWFrbTBmMHN1aTJwcHd1dHloMGs4YyJ9.kQj7ux3XSeQiOBwxzM5B9g',
     style: 'mapbox://styles/mapbox/satellite-streets-v11',
-    bounds: [[-122.8, 45.53], [-122.45, 45.65]],
+    bounds: [[-122.85, 45.53], [-122.35, 45.6]],
+    maxBounds: [[-123, 45.3], [-122.1, 45.8]],
     bearing: 16
 };
 
@@ -78,7 +79,9 @@ export function initializeMapBase(mapboxgl) {
     const map = new mapboxgl.Map({
         container: 'map',
         style: MAP_CONFIG.style,
-        bounds: MAP_CONFIG.bounds
+        bounds: MAP_CONFIG.bounds,
+        maxBounds: MAP_CONFIG.maxBounds,
+        minZoom: 2
     });
     map.setBearing(MAP_CONFIG.bearing);
     return map;
@@ -207,6 +210,30 @@ export function addPOILayer(map, data, currentLanguage = 'en') {
             'text-field': ['get', `name_${currentLanguage}`]
         },
         paint: LAYER_STYLES.poi.pointLabels.paint
+    });
+}
+
+export function addMaskLayer(map, data) {
+    if (!data || !data.features || data.features.length === 0) {
+        console.warn('No mask features to add');
+        return;
+    }
+
+    map.addSource('mask', {
+        type: 'geojson',
+        data: data
+    });
+
+    map.addLayer({
+        id: 'mask-layer',
+        type: 'fill',
+        source: 'mask',
+        paint: {
+            'fill-color': '#cfcfcf',
+            'fill-opacity': 0.5,
+            'fill-outline-color': '#cccccc'
+        },
+        layout: { visibility: 'visible' }
     });
 }
 

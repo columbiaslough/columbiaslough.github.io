@@ -12,10 +12,11 @@ import {
     updatePOILanguage,
     getPopupImageHtml,
     getIconsHtml,
-    getMapLinksHtml
+    getMapLinksHtml,
+    addMaskLayer
 } from './shared-map-functions.js';
 
-let pointsData, linesData, polygonsData, poiData;
+let pointsData, linesData, polygonsData, poiData, maskData;
 let currentLanguage = 'en';
 let currentImageIndex = 0;
 let labelsVisible = false;
@@ -25,17 +26,19 @@ let map;
 
 async function loadAllData() {
     try {
-        const [points, lines, polygons, poi] = await Promise.all([
+        const [points, lines, polygons, poi, mask] = await Promise.all([
             fetchFeatures('points'),
             fetchFeatures('lines'),
             fetchFeatures('polygons'),
-            fetchFeatures('poi')
+            fetchFeatures('poi'),
+            fetchFeatures('mask')
         ]);
         
         pointsData = points;
         linesData = lines;
         polygonsData = polygons;
         poiData = poi;
+        maskData = mask;
 
         console.log('Data loaded:', { 
             points: pointsData.features.length, 
@@ -219,8 +222,8 @@ function loadAdditionalFeatures() {
 
     console.log('Loading additional features...');
 
-    if (polygonsData && linesData && pointsData) {
-        ['polygons', 'lines', 'points', 'subpoints'].forEach(sourceId => {
+    if (polygonsData && linesData && pointsData && maskData) {
+        ['polygons', 'lines', 'points', 'subpoints', 'mask'].forEach(sourceId => {
             try {
                 const layerId = `${sourceId}-layer`;
                 if (map.getLayer(layerId)) {
@@ -239,6 +242,7 @@ function loadAdditionalFeatures() {
 
         addPolygonsLayer(map, polygonsData);
         addLinesLayer(map, linesData);
+        addMaskLayer(map, maskData);
 
         const loadIcon = (iconName) => {
             return new Promise((resolve, reject) => {
@@ -508,7 +512,7 @@ window.onload = function() {
 }
 
 document.getElementById("home-button").addEventListener("click", function() {
-    map.fitBounds([[-122.9, 45.53], [-122.3, 45.65]], {bearing: 16});
+    map.fitBounds([[-122.85, 45.53], [-122.35, 45.6]], {bearing: 16});
 });
 
 function createPopupFromFeature(feature, lang) {
