@@ -159,6 +159,7 @@ document.querySelectorAll('#basemap-selector input[name="basemap"]').forEach(rad
 
         map.on('style.load', function() {
             if (poiData) {
+                addMaskLayer(map, maskData);
                 addPOILayer(map, poiData, currentLanguage);
             }
             if (polygonsData) {
@@ -203,6 +204,10 @@ function initializeMap() {
     map = initializeMapBase(mapboxgl);
 
     map.on('load', function() {
+        if (maskData) {
+            addMaskLayer(map, maskData);
+        }
+
         if (poiData) {
             addPOILayer(map, poiData, currentLanguage);
             loadAdditionalFeatures();
@@ -223,7 +228,7 @@ function loadAdditionalFeatures() {
     console.log('Loading additional features...');
 
     if (polygonsData && linesData && pointsData && maskData) {
-        ['polygons', 'lines', 'points', 'subpoints', 'mask'].forEach(sourceId => {
+        ['polygons', 'lines', 'points', 'subpoints'].forEach(sourceId => {
             try {
                 const layerId = `${sourceId}-layer`;
                 if (map.getLayer(layerId)) {
@@ -242,7 +247,6 @@ function loadAdditionalFeatures() {
 
         addPolygonsLayer(map, polygonsData);
         addLinesLayer(map, linesData);
-        addMaskLayer(map, maskData);
 
         const loadIcon = (iconName) => {
             return new Promise((resolve, reject) => {
